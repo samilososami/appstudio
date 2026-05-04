@@ -13,7 +13,7 @@ import { DeviceType } from './types';
 export default function Home() {
   const { settings } = useSettings();
   const { snackData, isCreating, error, createSnack } = useSnack();
-  const { messages, isStreaming, sendMessage, stopStreaming, progressStep } = useChat(
+  const { messages, isStreaming, sendMessage, stopStreaming, progressStep, clearHistory } = useChat(
     settings.model || 'kimi-k2.6:cloud',
     settings.apiKey,
     createSnack
@@ -30,6 +30,7 @@ export default function Home() {
             progressStep={progressStep}
             onSendMessage={sendMessage}
             onStopStreaming={stopStreaming}
+            onClearHistory={clearHistory}
           />
         </Panel>
 

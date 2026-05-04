@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Zap } from 'lucide-react';
+import { MessageSquare, Zap, Trash2 } from 'lucide-react';
 import { Message } from '@/app/types';
 import { ChatMessageList } from './ChatMessageList';
 import { ChatInput } from './ChatInput';
@@ -13,9 +13,10 @@ interface ChatPanelProps {
   progressStep?: string | null;
   onSendMessage: (text: string) => void;
   onStopStreaming: () => void;
+  onClearHistory?: () => void;
 }
 
-export function ChatPanel({ messages, isStreaming, progressStep, onSendMessage, onStopStreaming }: ChatPanelProps) {
+export function ChatPanel({ messages, isStreaming, progressStep, onSendMessage, onStopStreaming, onClearHistory }: ChatPanelProps) {
   return (
     <div className="flex flex-col h-full bg-white">
       <div className="px-6 py-5 border-b border-bone-200 bg-white">
@@ -29,6 +30,15 @@ export function ChatPanel({ messages, isStreaming, progressStep, onSendMessage, 
               Habla con SamiBuilder para crear tu app
             </p>
           </div>
+          {messages.length > 0 && onClearHistory && (
+            <button
+              onClick={onClearHistory}
+              className="ml-auto p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-500 transition-all border border-transparent hover:border-red-200"
+              title="Limpiar historial"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
           {(isStreaming || progressStep) && (
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}

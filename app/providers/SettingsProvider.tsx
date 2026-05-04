@@ -11,11 +11,9 @@ interface SettingsContextType {
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
-const DEFAULT_API_KEY = 'acd55d5712664448902a6c0f3a42354f.lTn8_rEFFxrj_p5Sm1qkuc-0';
-
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>({
-    apiKey: DEFAULT_API_KEY,
+    apiKey: '',
     model: DEFAULT_MODEL,
   });
 
@@ -25,7 +23,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       try {
         const parsed = JSON.parse(stored);
         setSettings({
-          apiKey: parsed.apiKey || DEFAULT_API_KEY,
+          apiKey: parsed.apiKey || '',
           model: parsed.model || DEFAULT_MODEL,
         });
       } catch {

@@ -7,18 +7,59 @@ interface MarkdownRendererProps {
 }
 
 export function MarkdownRenderer({ text }: MarkdownRendererProps) {
-  // Dividir en parrafos por doble salto de linea
-  const paragraphs = text.split(/\n\n+/);
+  const lines = text.split('\n');
+  const elements: React.ReactNode[] = [];
+  let key = 0;
 
-  return (
-    <div className="space-y-2">
-      {paragraphs.map((paragraph, pIndex) => (
-        <p key={pIndex} className="whitespace-pre-wrap">
-          <RenderInline text={paragraph} />
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (line.startsWith('# ')) {
+      elements.push(
+        <h1 key={key++} className="text-lg font-bold text-gray-900 mt-3 mb-1">
+          {line.replace('# ', '')}
+        </h1>
+      );
+    } else if (line.startsWith('## ')) {
+      elements.push(
+        <h2 key={key++} className="text-base font-semibold text-gray-800 mt-2 mb-1">
+          {line.replace('## ', '')}
+        </h2>
+      );
+    } else if (line.startsWith('### ')) {
+      elements.push(
+        <h3 key={key++} className="text-sm font-semibold text-gray-700 mt-2 mb-1">
+          {line.replace('### ', '')}
+        </h3>
+      );
+    } else if (line.startsWith('- ') || line.startsWith('* ')) {
+      elements.push(
+        <ul key={key++} className="list-disc list-inside space-y-0.5 text-gray-700 my-1">
+          <li>
+            <RenderInline text={line.replace(/^[-\*]\s+/, '')} />
+          </li>
+        </ul>
+      );
+    } else if (line.match(/^\d+\.\s/)) {
+      elements.push(
+        <ol key={key++} className="list-decimal list-inside space-y-0.5 text-gray-700 my-1">
+          <li>
+            <RenderInline text={line.replace(/^\d+\.\s+/, '')} />
+          </li>
+        </ol>
+      );
+    } else if (line.trim() === '') {
+      elements.push(<div key={key++} className="h-2" />);
+    } else {
+      elements.push(
+        <p key={key++} className="whitespace-pre-wrap">
+          <RenderInline text={line} />
         </p>
-      ))}
-    </div>
-  );
+      );
+    }
+  }
+
+  return <div className="space-y-1">{elements}</div>;
 }
 
 function RenderInline({ text }: { text: string }) {
@@ -28,6 +69,7 @@ function RenderInline({ text }: { text: string }) {
   let key = 0;
 
   const patterns = [
+    { regex: /\[([^\]]+)\]\(([^)]+)\)/g, type: 'link' as const },
     { regex: /\*\*(.+?)\*\*/g, type: 'bold' as const },
     { regex: /`(.+?)`/g, type: 'code' as const },
     { regex: /\*(.+?)\*/g, type: 'italic' as const },
@@ -56,7 +98,20 @@ function RenderInline({ text }: { text: string }) {
       }
 
       // El match
-      if (earliestMatch.type === 'bold') {
+      if (earliestMatch.type === 'link') {
+        const linkMatch = /\[([^\]]+)\]\(([^)]+)\)/.exec(earliestMatch.content) || [earliestMatch.content, earliestMatch.content, '#'];
+        elements.push(
+          <a
+            key={key++}
+            href={linkMatch[2] || '#'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-water-600 hover:text-water-700 underline underline-offset-2 font-medium"
+          >
+            {linkMatch[1]}
+          </a>
+        );
+      } else if (earliestMatch.type === 'bold') {
         elements.push(<strong key={key++} className="font-semibold">{earliestMatch.content}</strong>);
       } else if (earliestMatch.type === 'italic') {
         elements.push(<em key={key++}>{earliestMatch.content}</em>);

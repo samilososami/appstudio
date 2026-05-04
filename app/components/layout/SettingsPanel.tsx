@@ -161,6 +161,12 @@ export function SettingsPanel({ open, onOpenChange }: SettingsPanelProps) {
                     </button>
                   </div>
 
+                  {!settings.apiKey && (
+                    <div className="flex items-center gap-2 text-sm text-amber-600">
+                      <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                      Introduce tu API Key de Ollama Cloud para empezar
+                    </div>
+                  )}
                   {settings.apiKey && (
                     <div className="flex items-center gap-2 text-sm text-green-600">
                       <div className="w-2 h-2 rounded-full bg-green-500" />

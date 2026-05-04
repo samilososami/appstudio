@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Message } from '@/app/types';
 import { SYSTEM_PROMPT } from '@/app/lib/constants';
 import { useOllamaStream } from './useOllamaStream';
@@ -24,17 +24,53 @@ function extractCodeBlock(text: string): { code: string | null; summary: string 
   return { code: null, summary: text };
 }
 
+const CHAT_HISTORY_KEY = 'samistudio-chat-history';
+
+function loadHistory(): Message[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = localStorage.getItem(CHAT_HISTORY_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+function saveHistory(messages: Message[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    const chatMessages = messages.filter((m) => m.role !== 'system');
+    localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(chatMessages));
+  } catch {
+    // ignore
+  }
+}
+
 export function useChat(
   model: string,
   apiKey: string,
   onCodeGenerated?: (code: string) => void
 ) {
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<Message[]>(() => [
     { role: 'system', content: SYSTEM_PROMPT },
+    ...loadHistory(),
   ]);
   const [progressStep, setProgressStep] = useState<string | null>(null);
   const { send, stop, isStreaming } = useOllamaStream();
   const assistantContentRef = useRef('');
+
+  const clearHistory = useCallback(() => {
+    setMessages([{ role: 'system', content: SYSTEM_PROMPT }]);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(CHAT_HISTORY_KEY);
+    }
+  }, []);
 
   const sendMessage = useCallback(
     async (userText: string) => {
@@ -42,7 +78,7 @@ export function useChat(
 
       const newMessages: Message[] = [
         ...messages,
-        { role: 'user', content: userText },
+        { role: 'user', content: userText, timestamp: Date.now() },
       ];
       setMessages(newMessages);
 
@@ -52,10 +88,10 @@ export function useChat(
       if (isAppRequest) {
         setMessages((prev) => [
           ...prev,
-          { role: 'assistant', content: '¡Genial! Voy a crear tu app. Pensando...' },
+          { role: 'assistant', content: '¡Genial! Voy a crear tu app. Pensando...', timestamp: Date.now() },
         ]);
       } else {
-        setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
+        setMessages((prev) => [...prev, { role: 'assistant', content: '', timestamp: Date.now() }]);
       }
 
       await send(
@@ -168,11 +204,17 @@ export function useChat(
 
   const chatMessages = messages.filter((m) => m.role !== 'system');
 
+  // Guardar historial cuando cambian los mensajes
+  useEffect(() => {
+    saveHistory(messages);
+  }, [messages]);
+
   return {
     messages: chatMessages,
     isStreaming,
     sendMessage,
     stopStreaming,
     progressStep,
+    clearHistory,
   };
 }

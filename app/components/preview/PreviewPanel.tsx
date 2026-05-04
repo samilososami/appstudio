@@ -7,7 +7,7 @@ import { PhoneMockup } from './PhoneMockup';
 import { WatchMockup } from './WatchMockup';
 import { DeviceToggle } from './DeviceToggle';
 import { ExpoActions } from './ExpoActions';
-import { Eye, Zap } from 'lucide-react';
+import { Eye, Zap, Loader2 } from 'lucide-react';
 
 interface PreviewPanelProps {
   deviceType: DeviceType;
@@ -48,9 +48,15 @@ export function PreviewPanel({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
             className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-water-50 border border-water-200 text-water-700 text-sm font-medium"
           >
-            <Zap className="w-4 h-4 animate-pulse" />
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+            >
+              <Zap className="w-4 h-4" />
+            </motion.div>
             Creando preview...
           </motion.div>
         )}
@@ -84,6 +90,15 @@ export function PreviewPanel({
                       allow="camera; microphone"
                       title="Phone Preview"
                     />
+                  ) : isCreating ? (
+                    <div className="flex flex-col items-center justify-center text-gray-400 text-sm text-center px-6 space-y-3">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                        className="w-10 h-10 rounded-full border-2 border-water-300 border-t-water-600"
+                      />
+                      <span className="font-medium text-gray-500">Generando preview...</span>
+                    </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center text-gray-400 text-sm text-center px-6">
                       <div className="w-12 h-12 rounded-2xl bg-bone-100 flex items-center justify-center mb-3">
@@ -114,6 +129,15 @@ export function PreviewPanel({
                       allow="camera; microphone"
                       title="Watch Preview"
                     />
+                  ) : isCreating ? (
+                    <div className="flex flex-col items-center justify-center text-gray-400 text-xs text-center px-4 space-y-2">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                        className="w-8 h-8 rounded-full border-2 border-water-300 border-t-water-600"
+                      />
+                      <span className="font-medium text-gray-500">Generando...</span>
+                    </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center text-gray-500 text-xs text-center px-4">
                       <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center mb-2">
