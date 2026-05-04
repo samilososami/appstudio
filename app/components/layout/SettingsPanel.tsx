@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Key, Cpu } from 'lucide-react';
+import { X, Sparkles, Key, Cpu, Globe, Heart, Code2 } from 'lucide-react';
 import { useSettings } from '@/app/providers/SettingsProvider';
 import { OLLAMA_MODELS } from '@/app/lib/constants';
 
@@ -173,6 +173,40 @@ export function SettingsPanel({ open, onOpenChange }: SettingsPanelProps) {
                       API Key configurada
                     </div>
                   )}
+                </div>
+
+                {/* Divider */}
+                <div className="h-px bg-bone-200" />
+
+                {/* Acerca de */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Heart className="w-5 h-5 text-water-600" />
+                    <label className="text-base font-semibold text-gray-900">Acerca de</label>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    SamiStudio es un generador de apps moviles con IA.
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <a
+                      href="https://github.com/samilososami/appstudio"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-bone-100 border border-bone-200 text-sm text-gray-600 hover:bg-bone-200 hover:text-gray-900 transition-all"
+                    >
+                      <Code2 className="w-4 h-4" />
+                      GitHub
+                    </a>
+                    <a
+                      href="https://samilososami.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-bone-100 border border-bone-200 text-sm text-gray-600 hover:bg-bone-200 hover:text-gray-900 transition-all"
+                    >
+                      <Globe className="w-4 h-4" />
+                      Web
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>
