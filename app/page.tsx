@@ -22,7 +22,7 @@ export default function Home() {
 
   return (
     <AppLayout>
-      <Group orientation="horizontal" className="h-full">
+      <Group orientation="horizontal" className="h-full hidden lg:flex">
         <Panel defaultSize={50} minSize={30}>
           <ChatPanel
             messages={messages}
@@ -47,6 +47,30 @@ export default function Home() {
           />
         </Panel>
       </Group>
+
+      {/* Mobile layout: stacked vertically */}
+      <div className="flex flex-col h-full lg:hidden">
+        <div className="flex-1 min-h-0">
+          <ChatPanel
+            messages={messages}
+            isStreaming={isStreaming}
+            progressStep={progressStep}
+            onSendMessage={sendMessage}
+            onStopStreaming={stopStreaming}
+            onClearHistory={clearHistory}
+          />
+        </div>
+        <div className="h-[300px] border-t border-bone-200">
+          <PreviewPanel
+            deviceType={deviceType}
+            snackId={snackData?.snackId || null}
+            snackUrl={snackData?.url || null}
+            onDeviceChange={setDeviceType}
+            isCreating={isCreating}
+            error={error}
+          />
+        </div>
+      </div>
     </AppLayout>
   );
 }
