@@ -45,32 +45,40 @@ export function ExpoActions({ snackId }: ExpoActionsProps) {
         )}
       </AnimatePresence>
 
-      <button
-        onClick={() => setShowQr(!showQr)}
-        disabled={!snackId}
-        className={`p-2 rounded-lg border transition-all ${
-          snackId
-            ? 'bg-white border-bone-300 hover:bg-bone-100 text-gray-700'
-            : 'bg-bone-200 border-bone-300 text-gray-400 cursor-not-allowed'
-        }`}
-        title="Ver QR"
-      >
-        <QrCode className="w-4 h-4" />
-      </button>
+      <div className="group relative">
+        <button
+          onClick={() => setShowQr(!showQr)}
+          disabled={!snackId}
+          className={`p-2.5 rounded-xl border transition-all shadow-sm ${
+            snackId
+              ? 'bg-white border-bone-200 hover:bg-bone-50 hover:border-water-300 hover:text-water-600 text-gray-600 hover:shadow-md'
+              : 'bg-bone-100 border-bone-200 text-gray-300 cursor-not-allowed'
+          }`}
+        >
+          <QrCode className="w-4 h-4" />
+        </button>
+        <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 rounded-lg bg-gray-800 text-white text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+          Ver QR
+        </span>
+      </div>
 
-      <a
-        href={snackUrl || '#'}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`p-2 rounded-lg border transition-all ${
-          snackId
-            ? 'bg-white border-bone-300 hover:bg-bone-100 text-gray-700'
-            : 'bg-bone-200 border-bone-300 text-gray-400 cursor-not-allowed pointer-events-none'
-        }`}
-        title="Abrir en nueva pestana"
-      >
-        <ExternalLink className="w-4 h-4" />
-      </a>
+      <div className="group relative">
+        <a
+          href={snackUrl || '#'}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`block p-2.5 rounded-xl border transition-all shadow-sm ${
+            snackId
+              ? 'bg-white border-bone-200 hover:bg-bone-50 hover:border-water-300 hover:text-water-600 text-gray-600 hover:shadow-md'
+              : 'bg-bone-100 border-bone-200 text-gray-300 cursor-not-allowed pointer-events-none'
+          }`}
+        >
+          <ExternalLink className="w-4 h-4" />
+        </a>
+        <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 rounded-lg bg-gray-800 text-white text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+          Abrir en Expo
+        </span>
+      </div>
     </div>
   );
 }
