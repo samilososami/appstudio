@@ -1,65 +1,51 @@
-import Image from "next/image";
+'use client';
+
+import { useState } from 'react';
+import { Panel, Group, Separator } from 'react-resizable-panels';
+import { AppLayout } from './components/layout/AppLayout';
+import { ChatPanel } from './components/chat/ChatPanel';
+import { PreviewPanel } from './components/preview/PreviewPanel';
+import { useChat } from './hooks/useChat';
+import { useSettings } from './providers/SettingsProvider';
+import { useSnack } from './hooks/useSnack';
+import { DeviceType } from './types';
 
 export default function Home() {
+  const { settings } = useSettings();
+  const { snackData, isCreating, error, createSnack } = useSnack();
+  const { messages, isStreaming, sendMessage, stopStreaming, progressStep } = useChat(
+    settings.model || 'kimi-k2.6:cloud',
+    settings.apiKey,
+    createSnack
+  );
+  const [deviceType, setDeviceType] = useState<DeviceType>('phone');
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <AppLayout>
+      <Group orientation="horizontal" className="h-full">
+        <Panel defaultSize={50} minSize={30}>
+          <ChatPanel
+            messages={messages}
+            isStreaming={isStreaming}
+            progressStep={progressStep}
+            onSendMessage={sendMessage}
+            onStopStreaming={stopStreaming}
+          />
+        </Panel>
+
+        <Separator className="w-1 bg-bone-300 hover:bg-water-400 transition-colors cursor-col-resize" />
+
+        <Panel defaultSize={50} minSize={30}>
+          <PreviewPanel
+            deviceType={deviceType}
+            snackId={snackData?.snackId || null}
+            snackUrl={snackData?.url || null}
+            onDeviceChange={setDeviceType}
+            isCreating={isCreating}
+            error={error}
+          />
+        </Panel>
+      </Group>
+    </AppLayout>
   );
 }
