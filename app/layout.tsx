@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { SettingsProvider } from "./providers/SettingsProvider";
+import { ToastProvider } from "./providers/ToastProvider";
+import { ThemeProvider } from "./providers/ThemeProvider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -26,7 +28,11 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col font-sans">
         <SettingsProvider>
-          {children}
+          <ThemeProvider>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </ThemeProvider>
         </SettingsProvider>
       </body>
     </html>

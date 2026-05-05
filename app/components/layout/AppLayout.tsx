@@ -6,6 +6,7 @@ import { Menu, MessageSquare, Settings, X, Sparkles, AlertCircle } from 'lucide-
 import { Sidebar } from './Sidebar';
 import { SettingsPanel } from './SettingsPanel';
 import { useSettings } from '@/app/providers/SettingsProvider';
+import { useKeyboardShortcuts } from '@/app/hooks/useKeyboardShortcuts';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -16,6 +17,20 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [activeItem, setActiveItem] = useState<'chat' | 'settings'>('chat');
   const { settings } = useSettings();
+
+  useKeyboardShortcuts({
+    onFocusInput: () => {
+      const input = document.getElementById('chat-input-field') as HTMLInputElement | null;
+      if (input) {
+        input.focus();
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    },
+    onCloseModals: () => {
+      setSidebarOpen(false);
+      setSettingsOpen(false);
+    },
+  });
 
   const handleNavigate = (item: 'chat' | 'settings') => {
     setActiveItem(item);
@@ -47,7 +62,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       )}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="absolute top-5 left-5 z-50 p-3 rounded-2xl bg-white shadow-lg shadow-black/5 border border-bone-200 hover:shadow-xl hover:border-water-200 transition-all duration-300 group"
+        className="absolute top-5 left-5 z-50 p-3 rounded-2xl bg-bone-50 shadow-lg shadow-black/5 border border-bone-200 hover:shadow-xl hover:border-water-200 transition-all duration-300 group"
         aria-label="Abrir menu"
       >
         <AnimatePresence mode="wait">
@@ -91,7 +106,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -280, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="fixed left-0 top-0 bottom-0 w-[280px] bg-white shadow-2xl z-40 flex flex-col"
+              className="fixed left-0 top-0 bottom-0 w-[280px] bg-bone-50 shadow-2xl z-40 flex flex-col"
             >
               <div className="px-6 pt-20 pb-6">
                 <div className="flex items-center gap-3 mb-8">
@@ -99,7 +114,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                     <Sparkles className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h1 className="text-lg font-bold text-gray-900">SamiStudio</h1>
+                    <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">SamiStudio</h1>
                     <p className="text-xs text-gray-500">Generador de Apps</p>
                   </div>
                 </div>

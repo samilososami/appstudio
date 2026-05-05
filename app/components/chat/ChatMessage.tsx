@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { User, Wand2, Copy, Check } from 'lucide-react';
 import { Message } from '@/app/types';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { useToast } from '@/app/providers/ToastProvider';
 
 interface ChatMessageProps {
   message: Message;
@@ -23,12 +24,14 @@ export const ChatMessage = React.memo(function ChatMessage({
 }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
+  const { showToast } = useToast();
 
   const hasCode = message.content.includes('```') || message.content.includes('`');
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content).then(() => {
       setCopied(true);
+      showToast({ type: 'success', message: 'Mensaje copiado al portapapeles' });
       setTimeout(() => setCopied(false), 2000);
     });
   };
@@ -54,7 +57,7 @@ export const ChatMessage = React.memo(function ChatMessage({
           className={`px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm relative group ${
             isUser
               ? 'bg-water-500 text-white rounded-tr-md shadow-water-500/20'
-              : 'bg-bone-100 border border-bone-200 text-gray-800 rounded-tl-md'
+              : 'bg-bone-100 border border-bone-200 text-gray-800 dark:text-gray-200 rounded-tl-md'
           }`}
         >
           <MarkdownRenderer text={message.content} />

@@ -39,7 +39,7 @@ export function ChatMessageList({ messages, isStreaming, onClearHistory }: ChatM
           </div>
 
           <div className="space-y-2">
-            <h3 className="text-xl font-bold text-gray-900">Bienvenido a SamiStudio</h3>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Bienvenido a SamiStudio</h3>
             <p className="text-sm text-gray-500 leading-relaxed">
               Describe la app que quieres crear y la IA generara el codigo para ti.
               <br />

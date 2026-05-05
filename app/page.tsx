@@ -13,10 +13,14 @@ import { DeviceType } from './types';
 export default function Home() {
   const { settings } = useSettings();
   const { snackData, isCreating, error, createSnack } = useSnack();
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const { messages, isStreaming, sendMessage, stopStreaming, progressStep, clearHistory } = useChat(
     settings.model || 'kimi-k2.6:cloud',
     settings.apiKey,
-    createSnack
+    async (code: string) => {
+      setGeneratedCode(code);
+      await createSnack(code);
+    }
   );
   const [deviceType, setDeviceType] = useState<DeviceType>('phone');
 
@@ -41,6 +45,7 @@ export default function Home() {
             deviceType={deviceType}
             snackId={snackData?.snackId || null}
             snackUrl={snackData?.url || null}
+            generatedCode={generatedCode}
             onDeviceChange={setDeviceType}
             isCreating={isCreating}
             error={error}
@@ -65,6 +70,7 @@ export default function Home() {
             deviceType={deviceType}
             snackId={snackData?.snackId || null}
             snackUrl={snackData?.url || null}
+            generatedCode={generatedCode}
             onDeviceChange={setDeviceType}
             isCreating={isCreating}
             error={error}

@@ -16,25 +16,25 @@ export function MarkdownRenderer({ text }: MarkdownRendererProps) {
 
     if (line.startsWith('# ')) {
       elements.push(
-        <h1 key={key++} className="text-lg font-bold text-gray-900 mt-3 mb-1">
+        <h1 key={key++} className="text-lg font-bold text-gray-900 dark:text-gray-100 mt-3 mb-1">
           {line.replace('# ', '')}
         </h1>
       );
     } else if (line.startsWith('## ')) {
       elements.push(
-        <h2 key={key++} className="text-base font-semibold text-gray-800 mt-2 mb-1">
+        <h2 key={key++} className="text-base font-semibold text-gray-800 dark:text-gray-200 mt-2 mb-1">
           {line.replace('## ', '')}
         </h2>
       );
     } else if (line.startsWith('### ')) {
       elements.push(
-        <h3 key={key++} className="text-sm font-semibold text-gray-700 mt-2 mb-1">
+        <h3 key={key++} className="text-sm font-semibold text-gray-700 dark:text-gray-300 dark:text-gray-300 mt-2 mb-1">
           {line.replace('### ', '')}
         </h3>
       );
     } else if (line.startsWith('- ') || line.startsWith('* ')) {
       elements.push(
-        <ul key={key++} className="list-disc list-inside space-y-0.5 text-gray-700 my-1">
+        <ul key={key++} className="list-disc list-inside space-y-0.5 text-gray-700 dark:text-gray-300 my-1">
           <li>
             <RenderInline text={line.replace(/^[-\*]\s+/, '')} />
           </li>
@@ -42,7 +42,7 @@ export function MarkdownRenderer({ text }: MarkdownRendererProps) {
       );
     } else if (line.match(/^\d+\.\s/)) {
       elements.push(
-        <ol key={key++} className="list-decimal list-inside space-y-0.5 text-gray-700 my-1">
+        <ol key={key++} className="list-decimal list-inside space-y-0.5 text-gray-700 dark:text-gray-300 my-1">
           <li>
             <RenderInline text={line.replace(/^\d+\.\s+/, '')} />
           </li>

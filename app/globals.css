@@ -4,6 +4,46 @@
 
 @custom-variant dark (&:is(.dark *));
 
+:root {
+  --water-50: #E0F7FA;
+  --water-100: #B2EBF2;
+  --water-200: #80DEEA;
+  --water-300: #4DD0E1;
+  --water-400: #26C6DA;
+  --water-500: #00BCD4;
+  --water-600: #00ACC1;
+  --water-700: #0097A7;
+  --water-800: #00838F;
+  --water-900: #006064;
+
+  --bone-50: #FFFFFF;
+  --bone-100: #F8F9FA;
+  --bone-200: #F1F3F5;
+  --bone-300: #E9ECEF;
+  --bone-400: #DEE2E6;
+  --bone-500: #CED4DA;
+}
+
+.dark {
+  --water-50: #0a2e33;
+  --water-100: #0d3d42;
+  --water-200: #0f4c52;
+  --water-300: #145a66;
+  --water-400: #1a7a85;
+  --water-500: #26a0ad;
+  --water-600: #4db8c4;
+  --water-700: #7dd0da;
+  --water-800: #a8e0e8;
+  --water-900: #d0f0f5;
+
+  --bone-50: #1a1a1a;
+  --bone-100: #252525;
+  --bone-200: #333333;
+  --bone-300: #444444;
+  --bone-400: #555555;
+  --bone-500: #666666;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -47,23 +87,23 @@
   --radius-3xl: calc(var(--radius) * 2);
   --radius-4xl: calc(var(--radius) * 2.5);
 
-  --color-water-50: #E0F7FA;
-  --color-water-100: #B2EBF2;
-  --color-water-200: #80DEEA;
-  --color-water-300: #4DD0E1;
-  --color-water-400: #26C6DA;
-  --color-water-500: #00BCD4;
-  --color-water-600: #00ACC1;
-  --color-water-700: #0097A7;
-  --color-water-800: #00838F;
-  --color-water-900: #006064;
+  --color-water-50: var(--water-50);
+  --color-water-100: var(--water-100);
+  --color-water-200: var(--water-200);
+  --color-water-300: var(--water-300);
+  --color-water-400: var(--water-400);
+  --color-water-500: var(--water-500);
+  --color-water-600: var(--water-600);
+  --color-water-700: var(--water-700);
+  --color-water-800: var(--water-800);
+  --color-water-900: var(--water-900);
 
-  --color-bone-50: #FFFFFF;
-  --color-bone-100: #F8F9FA;
-  --color-bone-200: #F1F3F5;
-  --color-bone-300: #E9ECEF;
-  --color-bone-400: #DEE2E6;
-  --color-bone-500: #CED4DA;
+  --color-bone-50: var(--bone-50);
+  --color-bone-100: var(--bone-100);
+  --color-bone-200: var(--bone-200);
+  --color-bone-300: var(--bone-300);
+  --color-bone-400: var(--bone-400);
+  --color-bone-500: var(--bone-500);
 }
 
 :root {
