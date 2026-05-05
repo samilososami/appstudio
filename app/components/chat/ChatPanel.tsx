@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Zap, Trash2 } from 'lucide-react';
 import { Message } from '@/app/types';
 import { ChatMessageList } from './ChatMessageList';
@@ -50,12 +50,26 @@ export function ChatPanel({ messages, isStreaming, progressStep, onSendMessage, 
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-water-50 border border-water-200"
+              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-water-50 border border-water-200 max-w-[200px]"
             >
-              <Zap className="w-3 h-3 text-water-600" />
-              <span className="text-xs font-medium text-water-700">
-                {progressStep === 'thinking' ? 'Pensando...' : progressStep === 'generating' ? 'Generando código...' : 'Generando...'}
-              </span>
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+              >
+                <Zap className="w-3 h-3 text-water-600" />
+              </motion.div>
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={progressStep || 'generating'}
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  transition={{ duration: 0.3 }}
+                  className="text-xs font-medium text-water-700 truncate"
+                >
+                  {progressStep || 'Generando...'}
+                </motion.span>
+              </AnimatePresence>
             </motion.div>
           )}
         </div>

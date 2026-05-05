@@ -5,7 +5,19 @@ import { Message } from '@/app/types';
 
 export function useOllamaStream() {
   const [isStreaming, setIsStreaming] = useState(false);
+  const [progressStep, setProgressStep] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const progressMessages = [
+    'Analizando requisitos...',
+    'Diseñando estructura...',
+    'Generando componentes...',
+    'Aplicando estilos...',
+    'Optimizando código...',
+    'Verificando sintaxis...',
+    'Casi listo...',
+  ];
 
   const send = useCallback(async (
     payload: { model: string; messages: Message[]; apiKey: string },
@@ -17,6 +29,13 @@ export function useOllamaStream() {
     setIsStreaming(true);
     abortRef.current = new AbortController();
     onProgress?.('thinking');
+    setProgressStep('Analizando tu solicitud...');
+
+    let messageIndex = 0;
+    progressTimerRef.current = setInterval(() => {
+      messageIndex = (messageIndex + 1) % progressMessages.length;
+      setProgressStep(progressMessages[messageIndex]);
+    }, 2500);
 
     try {
       const res = await fetch('/api/chat', {
@@ -56,12 +75,22 @@ export function useOllamaStream() {
       if (err.name !== 'AbortError') onError(err);
     } finally {
       setIsStreaming(false);
+      setProgressStep(null);
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
     }
   }, []);
 
   const stop = useCallback(() => {
     abortRef.current?.abort();
+    setProgressStep(null);
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
   }, []);
 
-  return { send, stop, isStreaming };
+  return { send, stop, isStreaming, progressStep };
 }

@@ -61,8 +61,7 @@ export function useChat(
     { role: 'system', content: SYSTEM_PROMPT },
     ...loadHistory(),
   ]);
-  const [progressStep, setProgressStep] = useState<string | null>(null);
-  const { send, stop, isStreaming } = useOllamaStream();
+  const { send, stop, isStreaming, progressStep } = useOllamaStream();
   const assistantContentRef = useRef('');
 
   const clearHistory = useCallback(() => {
@@ -167,7 +166,6 @@ export function useChat(
           });
         },
         (step) => {
-          setProgressStep(step);
           if (isAppRequest && step === 'thinking') {
             setMessages((prev) => {
               const next = [...prev];

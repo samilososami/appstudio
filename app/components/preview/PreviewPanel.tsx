@@ -7,7 +7,7 @@ import { PhoneMockup } from './PhoneMockup';
 import { WatchMockup } from './WatchMockup';
 import { DeviceToggle } from './DeviceToggle';
 import { ExpoActions } from './ExpoActions';
-import { Eye, Zap, Download, RefreshCw, Loader2 } from 'lucide-react';
+import { Eye, Zap, Download, RefreshCw, Loader2, Code2 } from 'lucide-react';
 import { useToast } from '@/app/providers/ToastProvider';
 
 interface PreviewPanelProps {
@@ -33,6 +33,7 @@ export function PreviewPanel({
 }: PreviewPanelProps) {
   const { showToast } = useToast();
   const [iframeLoading, setIframeLoading] = React.useState(true);
+  const [activeTab, setActiveTab] = React.useState<'preview' | 'code'>('preview');
 
   React.useEffect(() => {
     setIframeLoading(true);
@@ -64,6 +65,33 @@ export function PreviewPanel({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Tabs Preview / Code */}
+          {generatedCode && (
+            <div className="flex items-center bg-bone-100 rounded-xl p-1 border border-bone-200">
+              <button
+                onClick={() => setActiveTab('preview')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  activeTab === 'preview'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                Preview
+              </button>
+              <button
+                onClick={() => setActiveTab('code')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  activeTab === 'code'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Code2 className="w-3.5 h-3.5" />
+                Código
+              </button>
+            </div>
+          )}
           {generatedCode && (
             <div className="group relative">
               <button
@@ -82,9 +110,31 @@ export function PreviewPanel({
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center p-6 overflow-hidden">
-        <DeviceToggle value={deviceType} onChange={onDeviceChange} />
+        {activeTab === 'code' && generatedCode ? (
+          <div className="w-full h-full flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-gray-700">App.js</span>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(generatedCode);
+                  showToast({ type: 'success', message: 'Código copiado al portapapeles' });
+                }}
+                className="text-xs text-water-600 hover:text-water-700 font-medium transition-colors"
+              >
+                Copiar todo
+              </button>
+            </div>
+            <div className="flex-1 bg-gray-900 rounded-2xl overflow-hidden border border-gray-700">
+              <pre className="w-full h-full p-4 overflow-auto text-xs text-green-400 font-mono leading-relaxed">
+                <code>{generatedCode}</code>
+              </pre>
+            </div>
+          </div>
+        ) : (
+          <>
+            <DeviceToggle value={deviceType} onChange={onDeviceChange} />
 
-        {isCreating && (
+            {isCreating && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -120,7 +170,25 @@ export function PreviewPanel({
           </motion.div>
         )}
 
-        <div className="mt-8 flex items-center justify-center">
+        <div className={`mt-8 flex items-center justify-center relative ${isCreating ? 'glow-active' : ''}`}>
+          {isCreating && (
+            <motion.div
+              className="absolute inset-0 rounded-[50px]"
+              animate={{
+                boxShadow: [
+                  '0 0 20px rgba(0, 188, 212, 0.1)',
+                  '0 0 40px rgba(0, 188, 212, 0.3)',
+                  '0 0 20px rgba(0, 188, 212, 0.1)',
+                ],
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+              style={{ transform: 'scale(1.05)' }}
+            />
+          )}
           <AnimatePresence mode="wait">
             {deviceType === 'phone' ? (
               <motion.div
@@ -230,6 +298,8 @@ export function PreviewPanel({
             )}
           </AnimatePresence>
         </div>
+          </>
+        )}
       </div>
     </div>
   );
