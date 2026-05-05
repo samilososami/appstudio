@@ -7,17 +7,18 @@ interface WatchMockupProps {
 }
 
 export function WatchMockup({ children }: WatchMockupProps) {
-  const size = 280;
+  const size = 300;
   const cx = size / 2;
   const cy = size / 2;
-  const rOuter = size * 0.46;
-  const rInner = size * 0.40;
-  const rScreen = size * 0.36;
+  const rOuter = size * 0.47;
+  const rInner = size * 0.42;
+  const rScreen = size * 0.38;
 
   return (
-    <div className="relative flex items-center justify-center">
+    <div className="relative flex items-center justify-center select-none">
       {/* Sombra difusa */}
-      <div className="absolute bottom-4 w-[180px] h-[20px] bg-black/15 rounded-full blur-xl" />
+      <div className="absolute bottom-2 w-[200px] h-[24px] bg-black/20 rounded-[100%] blur-xl" />
+      <div className="absolute bottom-4 w-[160px] h-[16px] bg-black/10 rounded-[100%] blur-lg" />
 
       <svg
         width={size}
@@ -31,20 +32,30 @@ export function WatchMockup({ children }: WatchMockupProps) {
           <clipPath id="watchScreen">
             <circle cx={cx} cy={cy} r={rScreen} />
           </clipPath>
+          {/* Marco con gradiente metalico */}
           <linearGradient id="watchFrameGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#3a3a3a" />
-            <stop offset="50%" stopColor="#1a1a1a" />
-            <stop offset="100%" stopColor="#0a0a0a" />
+            <stop offset="0%" stopColor="#4a4a4c" />
+            <stop offset="30%" stopColor="#2c2c2e" />
+            <stop offset="70%" stopColor="#1c1c1e" />
+            <stop offset="100%" stopColor="#0a0a0c" />
           </linearGradient>
+          {/* Cristal */}
           <linearGradient id="watchGlass" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#fff" stopOpacity="0.15" />
-            <stop offset="40%" stopColor="#fff" stopOpacity="0.05" />
+            <stop offset="0%" stopColor="#fff" stopOpacity="0.2" />
+            <stop offset="30%" stopColor="#fff" stopOpacity="0.08" />
+            <stop offset="60%" stopColor="#fff" stopOpacity="0.02" />
             <stop offset="100%" stopColor="transparent" />
           </linearGradient>
+          {/* Correa */}
           <linearGradient id="watchStrapGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#2a2a2a" />
-            <stop offset="50%" stopColor="#1a1a1a" />
-            <stop offset="100%" stopColor="#0a0a0a" />
+            <stop offset="0%" stopColor="#3a3a3c" />
+            <stop offset="40%" stopColor="#2c2c2e" />
+            <stop offset="100%" stopColor="#1c1c1e" />
+          </linearGradient>
+          {/* Correa interior */}
+          <linearGradient id="watchStrapInner" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#5c3d2e" />
+            <stop offset="100%" stopColor="#3d2a1f" />
           </linearGradient>
           <filter id="watchShadow" x="-15%" y="-15%" width="130%" height="130%">
             <feDropShadow dx="0" dy="15" stdDeviation="15" floodOpacity="0.25" />
@@ -53,115 +64,148 @@ export function WatchMockup({ children }: WatchMockupProps) {
 
         {/* Correa superior */}
         <rect
-          x={size * 0.32}
+          x={size * 0.30}
           y="2"
-          width={size * 0.36}
-          height={size * 0.08}
-          rx="10"
+          width={size * 0.40}
+          height={size * 0.10}
+          rx="12"
           fill="url(#watchStrapGrad)"
-          stroke="#2a2a2a"
+          stroke="#3a3a3c"
           strokeWidth="0.5"
+        />
+        {/* Interior correa superior */}
+        <rect
+          x={size * 0.32}
+          y="6"
+          width={size * 0.36}
+          height={size * 0.05}
+          rx="6"
+          fill="url(#watchStrapInner)"
+          opacity="0.6"
         />
 
         {/* Correa inferior */}
         <rect
+          x={size * 0.30}
+          y={size * 0.90}
+          width={size * 0.40}
+          height={size * 0.10}
+          rx="12"
+          fill="url(#watchStrapGrad)"
+          stroke="#3a3a3c"
+          strokeWidth="0.5"
+        />
+        {/* Interior correa inferior */}
+        <rect
           x={size * 0.32}
           y={size * 0.92}
           width={size * 0.36}
-          height={size * 0.08}
-          rx="10"
-          fill="url(#watchStrapGrad)"
-          stroke="#2a2a2a"
-          strokeWidth="0.5"
+          height={size * 0.05}
+          rx="6"
+          fill="url(#watchStrapInner)"
+          opacity="0.6"
         />
 
-        {/* Corona giratoria */}
+        {/* Corona Digital Crown */}
+        <rect
+          x={size - 5}
+          y={size * 0.28}
+          width="10"
+          height="46"
+          rx="5"
+          fill="#3a3a3c"
+          stroke="#4a4a4c"
+          strokeWidth="0.5"
+        />
+        <rect
+          x={size - 3}
+          y={size * 0.30}
+          width="6"
+          height="42"
+          rx="3"
+          fill="#2c2c2e"
+        />
+        {/* Lineas de la corona */}
+        {[...Array(7)].map((_, i) => (
+          <rect
+            key={i}
+            x={size - 1}
+            y={size * 0.30 + 4 + i * 5.5}
+            width="2"
+            height="2.5"
+            rx="1"
+            fill="#1c1c1e"
+          />
+        ))}
+
+        {/* Boton lateral */}
         <rect
           x={size - 4}
-          y={size * 0.30}
+          y={size * 0.54}
           width="8"
-          height="42"
+          height="34"
           rx="4"
-          fill="#2a2a2a"
-          stroke="#333"
+          fill="#3a3a3c"
+          stroke="#4a4a4c"
           strokeWidth="0.5"
         />
         <rect
           x={size - 2}
-          y={size * 0.32}
+          y={size * 0.55}
           width="4"
-          height="38"
-          rx="2"
-          fill="#1a1a1a"
-        />
-
-        {/* Boton lateral */}
-        <rect
-          x={size - 3}
-          y={size * 0.52}
-          width="6"
           height="32"
-          rx="3"
-          fill="#2a2a2a"
-          stroke="#333"
-          strokeWidth="0.5"
+          rx="2"
+          fill="#2c2c2e"
         />
 
         {/* Sombra exterior */}
         <circle
           cx={cx}
           cy={cy}
-          r={rOuter + 2}
+          r={rOuter + 3}
           fill="#000"
-          opacity="0.15"
+          opacity="0.12"
           filter="url(#watchShadow)"
         />
 
-        {/* Marco exterior (carcasa) */}
+        {/* Marco exterior */}
         <circle
           cx={cx}
           cy={cy}
           r={rOuter}
           fill="url(#watchFrameGrad)"
-          stroke="#444"
-          strokeWidth="1"
+          stroke="#5a5a5c"
+          strokeWidth="0.5"
         />
 
-        {/* Bisel interior metálico */}
+        {/* Bisel interior */}
         <circle
           cx={cx}
           cy={cy}
           r={rInner}
           fill="none"
-          stroke="#555"
-          strokeWidth="2"
+          stroke="#6a6a6c"
+          strokeWidth="1.5"
         />
         <circle
           cx={cx}
           cy={cy}
           r={rInner - 1}
           fill="none"
-          stroke="#222"
+          stroke="#1c1c1e"
           strokeWidth="0.5"
         />
 
-        {/* Anillo metálico decorativo */}
+        {/* Anillo decorativo */}
         <circle
           cx={cx}
           cy={cy}
-          r={rOuter - 2}
+          r={rOuter - 3}
           fill="none"
-          stroke="#3a3a3a"
+          stroke="#4a4a4c"
           strokeWidth="0.5"
-          opacity="0.5"
+          opacity="0.4"
         />
-
-        {/* Clip circular para pantalla */}
-        <defs>
-          <clipPath id="watchScreen">
-            <circle cx={cx} cy={cy} r={rScreen} />
-          </clipPath>
-        </defs>
 
         {/* Pantalla */}
         <g clipPath="url(#watchScreen)">
@@ -184,7 +228,7 @@ export function WatchMockup({ children }: WatchMockupProps) {
           </foreignObject>
         </g>
 
-        {/* Reflejo del cristal */}
+        {/* Cristal con reflejo */}
         <circle
           cx={cx}
           cy={cy}
@@ -195,12 +239,12 @@ export function WatchMockup({ children }: WatchMockupProps) {
 
         {/* Brillo superior */}
         <ellipse
-          cx={cx - rScreen * 0.2}
-          cy={cy - rScreen * 0.3}
+          cx={cx - rScreen * 0.25}
+          cy={cy - rScreen * 0.35}
           rx={rScreen * 0.3}
-          ry={rScreen * 0.2}
+          ry={rScreen * 0.18}
           fill="#fff"
-          opacity="0.03"
+          opacity="0.04"
           pointerEvents="none"
         />
       </svg>
