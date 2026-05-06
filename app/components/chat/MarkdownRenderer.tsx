@@ -9,127 +9,194 @@ interface MarkdownRendererProps {
 export function MarkdownRenderer({ text }: MarkdownRendererProps) {
   const lines = text.split('\n');
   const elements: React.ReactNode[] = [];
+  let index = 0;
   let key = 0;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  while (index < lines.length) {
+    const line = lines[index];
+
+    if (line.trim().startsWith('```')) {
+      const language = line.trim().replace(/^```/, '').trim() || 'text';
+      const codeLines: string[] = [];
+      index += 1;
+
+      while (index < lines.length && !lines[index].trim().startsWith('```')) {
+        codeLines.push(lines[index]);
+        index += 1;
+      }
+      index += 1;
+
+      elements.push(
+        <div key={key++} className="my-3 overflow-hidden rounded-xl border border-black/10 bg-gray-950">
+          <div className="border-b border-white/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+            {language}
+          </div>
+          <pre className="overflow-x-auto p-3 text-xs leading-relaxed text-green-300">
+            <code>{codeLines.join('\n')}</code>
+          </pre>
+        </div>
+      );
+      continue;
+    }
+
+    if (line.trim() === '') {
+      elements.push(<div key={key++} className="h-2" />);
+      index += 1;
+      continue;
+    }
 
     if (line.startsWith('# ')) {
       elements.push(
-        <h1 key={key++} className="text-lg font-bold text-gray-900 dark:text-gray-100 mt-3 mb-1">
-          {line.replace('# ', '')}
+        <h1 key={key++} className="mt-3 text-lg font-bold text-gray-900 dark:text-gray-100">
+          <RenderInline text={line.slice(2)} />
         </h1>
       );
-    } else if (line.startsWith('## ')) {
+      index += 1;
+      continue;
+    }
+
+    if (line.startsWith('## ')) {
       elements.push(
-        <h2 key={key++} className="text-base font-semibold text-gray-800 dark:text-gray-200 mt-2 mb-1">
-          {line.replace('## ', '')}
+        <h2 key={key++} className="mt-3 text-base font-semibold text-gray-900 dark:text-gray-100">
+          <RenderInline text={line.slice(3)} />
         </h2>
       );
-    } else if (line.startsWith('### ')) {
+      index += 1;
+      continue;
+    }
+
+    if (line.startsWith('### ')) {
       elements.push(
-        <h3 key={key++} className="text-sm font-semibold text-gray-700 dark:text-gray-300 dark:text-gray-300 mt-2 mb-1">
-          {line.replace('### ', '')}
+        <h3 key={key++} className="mt-2 text-sm font-semibold text-gray-800 dark:text-gray-200">
+          <RenderInline text={line.slice(4)} />
         </h3>
       );
-    } else if (line.startsWith('- ') || line.startsWith('* ')) {
+      index += 1;
+      continue;
+    }
+
+    if (/^[-*]\s+/.test(line)) {
+      const items: string[] = [];
+      while (index < lines.length && /^[-*]\s+/.test(lines[index])) {
+        items.push(lines[index].replace(/^[-*]\s+/, ''));
+        index += 1;
+      }
       elements.push(
-        <ul key={key++} className="list-disc list-inside space-y-0.5 text-gray-700 dark:text-gray-300 my-1">
-          <li>
-            <RenderInline text={line.replace(/^[-\*]\s+/, '')} />
-          </li>
+        <ul key={key++} className="my-2 list-disc space-y-1 pl-5 text-gray-700 dark:text-gray-300">
+          {items.map((item, itemIndex) => (
+            <li key={itemIndex}>
+              <RenderInline text={item} />
+            </li>
+          ))}
         </ul>
       );
-    } else if (line.match(/^\d+\.\s/)) {
+      continue;
+    }
+
+    if (/^\d+\.\s+/.test(line)) {
+      const items: string[] = [];
+      while (index < lines.length && /^\d+\.\s+/.test(lines[index])) {
+        items.push(lines[index].replace(/^\d+\.\s+/, ''));
+        index += 1;
+      }
       elements.push(
-        <ol key={key++} className="list-decimal list-inside space-y-0.5 text-gray-700 dark:text-gray-300 my-1">
-          <li>
-            <RenderInline text={line.replace(/^\d+\.\s+/, '')} />
-          </li>
+        <ol key={key++} className="my-2 list-decimal space-y-1 pl-5 text-gray-700 dark:text-gray-300">
+          {items.map((item, itemIndex) => (
+            <li key={itemIndex}>
+              <RenderInline text={item} />
+            </li>
+          ))}
         </ol>
       );
-    } else if (line.trim() === '') {
-      elements.push(<div key={key++} className="h-2" />);
-    } else {
-      elements.push(
-        <p key={key++} className="whitespace-pre-wrap">
-          <RenderInline text={line} />
-        </p>
-      );
+      continue;
     }
+
+    if (line.startsWith('> ')) {
+      const quoteLines: string[] = [];
+      while (index < lines.length && lines[index].startsWith('> ')) {
+        quoteLines.push(lines[index].slice(2));
+        index += 1;
+      }
+      elements.push(
+        <blockquote key={key++} className="my-2 border-l-2 border-water-400 pl-3 text-gray-600 dark:text-gray-300">
+          {quoteLines.map((quote, quoteIndex) => (
+            <p key={quoteIndex}>
+              <RenderInline text={quote} />
+            </p>
+          ))}
+        </blockquote>
+      );
+      continue;
+    }
+
+    const paragraphLines = [line];
+    index += 1;
+    while (
+      index < lines.length &&
+      lines[index].trim() !== '' &&
+      !lines[index].trim().startsWith('```') &&
+      !/^(#{1,3}\s|[-*]\s+|\d+\.\s+|>\s)/.test(lines[index])
+    ) {
+      paragraphLines.push(lines[index]);
+      index += 1;
+    }
+
+    elements.push(
+      <p key={key++} className="whitespace-pre-wrap">
+        <RenderInline text={paragraphLines.join('\n')} />
+      </p>
+    );
   }
 
   return <div className="space-y-1">{elements}</div>;
 }
 
 function RenderInline({ text }: { text: string }) {
-  // Procesar inline: bold, italic, code
-  const elements: React.ReactNode[] = [];
-  let remaining = text;
+  const tokens: React.ReactNode[] = [];
+  const regex = /(\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*]+)\*)/g;
+  let lastIndex = 0;
   let key = 0;
+  let match: RegExpExecArray | null;
 
-  const patterns = [
-    { regex: /\[([^\]]+)\]\(([^)]+)\)/g, type: 'link' as const },
-    { regex: /\*\*(.+?)\*\*/g, type: 'bold' as const },
-    { regex: /`(.+?)`/g, type: 'code' as const },
-    { regex: /\*(.+?)\*/g, type: 'italic' as const },
-  ];
-
-  while (remaining.length > 0) {
-    let earliestMatch: { index: number; length: number; type: string; content: string } | null = null;
-
-    for (const pattern of patterns) {
-      pattern.regex.lastIndex = 0;
-      const match = pattern.regex.exec(remaining);
-      if (match && (earliestMatch === null || match.index < earliestMatch.index)) {
-        earliestMatch = {
-          index: match.index,
-          length: match[0].length,
-          type: pattern.type,
-          content: match[1],
-        };
-      }
+  while ((match = regex.exec(text))) {
+    if (match.index > lastIndex) {
+      tokens.push(<span key={key++}>{text.slice(lastIndex, match.index)}</span>);
     }
 
-    if (earliestMatch) {
-      // Texto antes del match
-      if (earliestMatch.index > 0) {
-        elements.push(<span key={key++}>{remaining.slice(0, earliestMatch.index)}</span>);
-      }
-
-      // El match
-      if (earliestMatch.type === 'link') {
-        const linkMatch = /\[([^\]]+)\]\(([^)]+)\)/.exec(earliestMatch.content) || [earliestMatch.content, earliestMatch.content, '#'];
-        elements.push(
-          <a
-            key={key++}
-            href={linkMatch[2] || '#'}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-water-600 hover:text-water-700 underline underline-offset-2 font-medium"
-          >
-            {linkMatch[1]}
-          </a>
-        );
-      } else if (earliestMatch.type === 'bold') {
-        elements.push(<strong key={key++} className="font-semibold">{earliestMatch.content}</strong>);
-      } else if (earliestMatch.type === 'italic') {
-        elements.push(<em key={key++}>{earliestMatch.content}</em>);
-      } else if (earliestMatch.type === 'code') {
-        elements.push(
-          <code key={key++} className="px-1.5 py-0.5 rounded-md bg-black/10 text-sm font-mono">
-            {earliestMatch.content}
-          </code>
-        );
-      }
-
-      remaining = remaining.slice(earliestMatch.index + earliestMatch.length);
-    } else {
-      // No hay mas matches
-      elements.push(<span key={key++}>{remaining}</span>);
-      break;
+    if (match[2] && match[3]) {
+      tokens.push(
+        <a
+          key={key++}
+          href={match[3]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-water-700 underline underline-offset-2 hover:text-water-800"
+        >
+          {match[2]}
+        </a>
+      );
+    } else if (match[4]) {
+      tokens.push(
+        <strong key={key++} className="font-semibold">
+          {match[4]}
+        </strong>
+      );
+    } else if (match[5]) {
+      tokens.push(
+        <code key={key++} className="rounded-md bg-black/10 px-1.5 py-0.5 font-mono text-[0.92em]">
+          {match[5]}
+        </code>
+      );
+    } else if (match[6]) {
+      tokens.push(<em key={key++}>{match[6]}</em>);
     }
+
+    lastIndex = match.index + match[0].length;
   }
 
-  return <>{elements}</>;
+  if (lastIndex < text.length) {
+    tokens.push(<span key={key++}>{text.slice(lastIndex)}</span>);
+  }
+
+  return <>{tokens}</>;
 }

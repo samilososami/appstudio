@@ -2,42 +2,80 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DeviceType } from '@/app/types';
+import { Code2, Copy, Download, Eye, Loader2, RefreshCw, Smartphone, Watch, Zap } from 'lucide-react';
+import type { DeviceType, WatchShape } from '@/app/types';
+import { useToast } from '@/app/providers/ToastProvider';
 import { PhoneMockup } from './PhoneMockup';
 import { WatchMockup } from './WatchMockup';
-import { DeviceToggle } from './DeviceToggle';
 import { ExpoActions } from './ExpoActions';
-import { Eye, Zap, Download, RefreshCw, Loader2, Code2 } from 'lucide-react';
-import { useToast } from '@/app/providers/ToastProvider';
+import { SnackRuntimePreview } from './SnackRuntimePreview';
 
 interface PreviewPanelProps {
   deviceType: DeviceType;
+  watchShape: WatchShape;
   snackId: string | null;
   snackUrl: string | null;
+  runtimeUrl?: string | null;
   generatedCode?: string | null;
-  onDeviceChange: (device: DeviceType) => void;
+  isGenerating?: boolean;
   isCreating?: boolean;
   error?: string | null;
   onRetry?: () => void;
 }
 
+function hashString(value: string) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
 export function PreviewPanel({
   deviceType,
+  watchShape,
   snackId,
   snackUrl,
+  runtimeUrl,
   generatedCode,
-  onDeviceChange,
+  isGenerating,
   isCreating,
   error,
   onRetry,
 }: PreviewPanelProps) {
   const { showToast } = useToast();
-  const [iframeLoading, setIframeLoading] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState<'preview' | 'code'>('preview');
+  const previewId = React.useMemo(() => {
+    if (!generatedCode) return null;
+    return `${deviceType}-${watchShape}-${hashString(generatedCode)}`;
+  }, [deviceType, generatedCode, watchShape]);
 
   React.useEffect(() => {
-    setIframeLoading(true);
-  }, [snackId]);
+    if (!previewId || !generatedCode || typeof window === 'undefined') return;
+    localStorage.setItem(
+      `samistudio-preview-${previewId}`,
+      JSON.stringify({
+        code: generatedCode,
+        deviceType,
+        watchShape,
+        snackId,
+        snackUrl,
+        runtimeUrl,
+        createdAt: Date.now(),
+      })
+    );
+  }, [deviceType, generatedCode, previewId, runtimeUrl, snackId, snackUrl, watchShape]);
+
+  const fullScreenUrl = previewId ? `/preview/${previewId}` : null;
+  const targetLabel =
+    deviceType === 'watch'
+      ? watchShape === 'square'
+        ? 'Reloj cuadrado'
+        : 'Reloj circular'
+      : 'Telefono';
+  const TargetIcon = deviceType === 'watch' ? Watch : Smartphone;
+  const magicActive = Boolean(isGenerating || isCreating);
 
   const handleDownload = () => {
     if (!generatedCode) return;
@@ -50,254 +88,243 @@ export function PreviewPanel({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast({ type: 'success', message: 'Código descargado como App.js' });
+    showToast({ type: 'success', message: 'Codigo descargado como App.js' });
   };
+
+  const handleCopy = () => {
+    if (!generatedCode) return;
+    navigator.clipboard.writeText(generatedCode);
+    showToast({ type: 'success', message: 'Codigo copiado al portapapeles' });
+  };
+
+  const emptyState = (
+    <div className="flex flex-col items-center justify-center px-6 text-center text-sm text-gray-400">
+      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-bone-100">
+        <Zap className="h-5 w-5 text-bone-400" />
+      </div>
+      <span className="font-medium text-gray-500">Escribe un prompt</span>
+      <span>para generar una preview interactiva</span>
+    </div>
+  );
+
+  const loadingState = (
+    <div className="flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-gray-500">
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
+        className="rounded-full"
+      >
+        <Loader2 className="h-7 w-7 text-water-600" />
+      </motion.div>
+      <span className="font-medium">Preparando preview...</span>
+    </div>
+  );
+
+  const screenContent = (children: React.ReactNode) => (
+    <div className="relative h-full w-full overflow-hidden">
+      <div className={`h-full w-full transition-all duration-300 ${magicActive ? 'scale-[1.015] blur-sm brightness-90' : ''}`}>
+        {children}
+      </div>
+      <AnimatePresence>
+        {magicActive && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-white/20 backdrop-blur-[2px]"
+          >
+            <motion.div
+              animate={{ scale: [0.92, 1.04, 0.92], opacity: [0.55, 0.95, 0.55] }}
+              transition={{ duration: 1.7, repeat: Infinity, ease: 'easeInOut' }}
+              className="relative flex h-20 w-20 items-center justify-center rounded-full border border-water-200/70 bg-white/60 shadow-xl shadow-water-500/20"
+            >
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 5, repeat: Infinity, ease: 'linear' }}
+                className="absolute inset-2 rounded-full border border-dashed border-water-400/70"
+              />
+              <Zap className="h-7 w-7 text-water-600" />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+
   return (
-    <div className="flex flex-col h-full bg-bone-50">
-      <div className="flex items-center justify-between px-6 py-5 border-b border-bone-200 bg-bone-50">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-water-500 flex items-center justify-center shadow-lg shadow-water-500/25">
-            <Eye className="w-4 h-4 text-white" />
+    <div className="flex h-full flex-col bg-bone-50">
+      <div className="flex items-center justify-between gap-4 border-b border-bone-200 bg-bone-50 px-6 py-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-water-500 shadow-lg shadow-water-500/25">
+            <Eye className="h-4 w-4 text-white" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Preview</h2>
-            <p className="text-xs text-gray-500">Expo Snack</p>
+            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500">
+              <TargetIcon className="h-3.5 w-3.5" />
+              <span className="truncate">Auto por IA: {targetLabel}</span>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Tabs Preview / Code */}
+
+        <div className="flex shrink-0 items-center gap-2">
           {generatedCode && (
-            <div className="flex items-center bg-bone-100 rounded-xl p-1 border border-bone-200">
+            <div className="flex items-center rounded-xl border border-bone-200 bg-bone-100 p-1">
               <button
                 onClick={() => setActiveTab('preview')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  activeTab === 'preview'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
+                className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-all ${
+                  activeTab === 'preview' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                <Eye className="w-3.5 h-3.5" />
+                <Eye className="h-3.5 w-3.5" />
                 Preview
               </button>
               <button
                 onClick={() => setActiveTab('code')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  activeTab === 'code'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
+                className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-all ${
+                  activeTab === 'code' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                <Code2 className="w-3.5 h-3.5" />
-                Código
+                <Code2 className="h-3.5 w-3.5" />
+                Codigo
               </button>
             </div>
           )}
+
           {generatedCode && (
-            <div className="group relative">
+            <>
+              <button
+                onClick={handleCopy}
+                className="group relative rounded-xl border border-bone-200 bg-white p-2.5 text-gray-600 shadow-sm transition-all hover:border-water-300 hover:bg-bone-50 hover:text-water-600"
+              >
+                <Copy className="h-4 w-4" />
+                <span className="pointer-events-none absolute -bottom-8 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-800 px-2 py-1 text-[10px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+                  Copiar codigo
+                </span>
+              </button>
               <button
                 onClick={handleDownload}
-                className="p-2.5 rounded-xl border bg-bone-50 border-bone-200 hover:bg-bone-50 hover:border-water-300 hover:text-water-600 text-gray-600 hover:shadow-md transition-all shadow-sm"
+                className="group relative rounded-xl border border-bone-200 bg-white p-2.5 text-gray-600 shadow-sm transition-all hover:border-water-300 hover:bg-bone-50 hover:text-water-600"
               >
-                <Download className="w-4 h-4" />
+                <Download className="h-4 w-4" />
+                <span className="pointer-events-none absolute -bottom-8 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-800 px-2 py-1 text-[10px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+                  Descargar App.js
+                </span>
               </button>
-              <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 rounded-lg bg-gray-800 text-white text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                Descargar código
-              </span>
-            </div>
+            </>
           )}
-          <ExpoActions snackId={snackId} />
+
+          <ExpoActions
+            snackUrl={snackUrl}
+            runtimeUrl={runtimeUrl}
+            fullScreenUrl={fullScreenUrl}
+          />
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center p-6 overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden p-6">
         {activeTab === 'code' && generatedCode ? (
-          <div className="w-full h-full flex flex-col">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-gray-700">App.js</span>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(generatedCode);
-                  showToast({ type: 'success', message: 'Código copiado al portapapeles' });
-                }}
-                className="text-xs text-water-600 hover:text-water-700 font-medium transition-colors"
-              >
+          <div className="flex h-full w-full flex-col">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">App.js</span>
+              <button onClick={handleCopy} className="text-xs font-medium text-water-600 transition-colors hover:text-water-700">
                 Copiar todo
               </button>
             </div>
-            <div className="flex-1 bg-gray-900 rounded-2xl overflow-hidden border border-gray-700">
-              <pre className="w-full h-full p-4 overflow-auto text-xs text-green-400 font-mono leading-relaxed">
+            <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-gray-700 bg-gray-950">
+              <pre className="h-full w-full overflow-auto p-4 font-mono text-xs leading-relaxed text-green-300">
                 <code>{generatedCode}</code>
               </pre>
             </div>
           </div>
         ) : (
           <>
-            <DeviceToggle value={deviceType} onChange={onDeviceChange} />
+            <AnimatePresence>
+              {isCreating && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="mb-4 flex items-center gap-2 rounded-xl border border-water-200 bg-water-50 px-4 py-2 text-sm font-medium text-water-700"
+                >
+                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}>
+                    <Zap className="h-4 w-4" />
+                  </motion.div>
+                  Guardando Snack para QR...
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            {isCreating && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-water-50 border border-water-200 text-water-700 text-sm font-medium"
-          >
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-            >
-              <Zap className="w-4 h-4" />
-            </motion.div>
-            Creando preview...
-          </motion.div>
-        )}
-
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-4 flex flex-col items-center gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium max-w-xs text-center"
-          >
-            <span>{error}</span>
-            {onRetry && (
-              <button
-                onClick={onRetry}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-800 text-xs font-semibold transition-colors"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                Reintentar
-              </button>
-            )}
-          </motion.div>
-        )}
-
-        <div className={`mt-8 flex items-center justify-center relative ${isCreating ? 'glow-active' : ''}`}>
-          {isCreating && (
-            <motion.div
-              className="absolute inset-0 rounded-[50px]"
-              animate={{
-                boxShadow: [
-                  '0 0 20px rgba(0, 188, 212, 0.1)',
-                  '0 0 40px rgba(0, 188, 212, 0.3)',
-                  '0 0 20px rgba(0, 188, 212, 0.1)',
-                ],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }}
-              style={{ transform: 'scale(1.05)' }}
-            />
-          )}
-          <AnimatePresence mode="wait">
-            {deviceType === 'phone' ? (
+            {error && (
               <motion.div
-                key="phone"
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: -20 }}
-                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-4 flex max-w-sm flex-col items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-700"
               >
-                <PhoneMockup>
-                  {snackId ? (
-                    <div className="relative w-full h-full">
-                      {iframeLoading && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-bone-50 z-10">
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-                          >
-                            <Loader2 className="w-6 h-6 text-water-500" />
-                          </motion.div>
-                          <span className="text-xs text-gray-400 mt-2">Cargando preview...</span>
-                        </div>
-                      )}
-                      <iframe
-                        src={`https://snack.expo.dev/embedded/${snackId}?preview=true&platform=android&supportedPlatforms=android&theme=dark&deviceAppearance=dark`}
-                        className="w-full h-full border-0"
-                        style={{ minHeight: '100%' }}
-                        allow="camera; microphone"
-                        title="Phone Preview"
-                        onLoad={() => setIframeLoading(false)}
-                      />
-                    </div>
-                  ) : isCreating ? (
-                    <div className="flex flex-col items-center justify-center text-gray-400 text-sm text-center px-6 space-y-3">
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                        className="w-10 h-10 rounded-full border-2 border-water-300 border-t-water-600"
-                      />
-                      <span className="font-medium text-gray-500">Generando preview...</span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center text-gray-400 text-sm text-center px-6">
-                      <div className="w-12 h-12 rounded-2xl bg-bone-100 flex items-center justify-center mb-3">
-                        <svg className="w-6 h-6 text-bone-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                      </div>
-                      <span className="font-medium">Escribe un prompt</span>
-                      <span>para generar una app</span>
-                    </div>
-                  )}
-                </PhoneMockup>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="watch"
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: -20 }}
-                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <WatchMockup>
-                  {snackId ? (
-                    <div className="relative w-full h-full">
-                      {iframeLoading && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-10">
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-                          >
-                            <Loader2 className="w-5 h-5 text-water-500" />
-                          </motion.div>
-                          <span className="text-[10px] text-gray-500 mt-1.5">Cargando...</span>
-                        </div>
-                      )}
-                      <iframe
-                        src={`https://snack.expo.dev/embedded/${snackId}?preview=true&platform=android&supportedPlatforms=android&theme=dark&deviceAppearance=dark`}
-                        className="w-full h-full border-0"
-                        style={{ minHeight: '100%', clipPath: 'circle(50%)' }}
-                        allow="camera; microphone"
-                        title="Watch Preview"
-                        onLoad={() => setIframeLoading(false)}
-                      />
-                    </div>
-                  ) : isCreating ? (
-                    <div className="flex flex-col items-center justify-center text-gray-400 text-xs text-center px-4 space-y-2">
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                        className="w-8 h-8 rounded-full border-2 border-water-300 border-t-water-600"
-                      />
-                      <span className="font-medium text-gray-500">Generando...</span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center text-gray-500 text-xs text-center px-4">
-                      <div className="w-8 h-8 rounded-xl bg-bone-50/10 flex items-center justify-center mb-2">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                      </div>
-                      <span>Escribe un prompt</span>
-                    </div>
-                  )}
-                </WatchMockup>
+                <span>{error}</span>
+                {onRetry && (
+                  <button
+                    onClick={onRetry}
+                    className="flex items-center gap-1.5 rounded-lg bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-800 transition-colors hover:bg-red-200"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Reintentar
+                  </button>
+                )}
               </motion.div>
             )}
-          </AnimatePresence>
-        </div>
+
+            <div className="flex min-h-0 flex-1 items-center justify-center">
+              <AnimatePresence mode="wait">
+                {deviceType === 'phone' ? (
+                  <motion.div
+                    key="phone"
+                    initial={{ opacity: 0, scale: 0.94, y: 18 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.94, y: -18 }}
+                    transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <PhoneMockup>
+                      {screenContent(
+                        generatedCode ? (
+                          <SnackRuntimePreview code={generatedCode} viewport={{ width: 390, height: 834 }} fit="cover" />
+                        ) : isCreating || isGenerating ? (
+                          loadingState
+                        ) : (
+                          emptyState
+                        )
+                      )}
+                    </PhoneMockup>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key={`watch-${watchShape}`}
+                    initial={{ opacity: 0, scale: 0.94, y: 18 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.94, y: -18 }}
+                    transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <WatchMockup shape={watchShape}>
+                      {screenContent(
+                        generatedCode ? (
+                          <SnackRuntimePreview
+                            code={generatedCode}
+                            compact
+                            fit="cover"
+                            viewport={{ width: watchShape === 'round' ? 220 : 240, height: watchShape === 'round' ? 220 : 240 }}
+                            className={watchShape === 'round' ? 'rounded-full' : 'rounded-[38px]'}
+                          />
+                        ) : isCreating || isGenerating ? (
+                          loadingState
+                        ) : (
+                          emptyState
+                        )
+                      )}
+                    </WatchMockup>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </>
         )}
       </div>

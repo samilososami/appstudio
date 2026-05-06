@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Settings, Wand2 } from 'lucide-react';
+import { MessageSquare, Settings } from 'lucide-react';
 
 interface SidebarProps {
   activeItem: 'chat' | 'settings';

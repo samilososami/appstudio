@@ -1,30 +1,133 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Message } from '@/app/types';
+import type { DeviceSpec, Message, ResponseMode } from '@/app/types';
 import { SYSTEM_PROMPT } from '@/app/lib/constants';
 import { useOllamaStream } from './useOllamaStream';
 
-function extractCodeBlock(text: string): { code: string | null; summary: string } {
-  const codeMatch = text.match(/```(?:jsx|tsx)?\n([\s\S]*?)```/);
-  if (codeMatch) {
-    const code = codeMatch[1].trim();
-    // El resumen es todo el texto antes del bloque de codigo
-    const summary = text.split('```')[0].trim();
-    return { code, summary };
-  }
+const CHAT_HISTORY_KEY = 'samistudio-chat-history';
 
-  // Durante streaming: si hay un bloque abierto pero sin cerrar, ocultar el codigo parcial
-  const openMatch = text.match(/```(?:jsx|tsx)?\n/);
-  if (openMatch) {
-    const summary = text.substring(0, openMatch.index).trim();
-    return { code: null, summary: summary || 'Generando codigo...' };
-  }
-
-  return { code: null, summary: text };
+function createSystemMessage(): Message {
+  return { id: 'system', role: 'system', content: SYSTEM_PROMPT };
 }
 
-const CHAT_HISTORY_KEY = 'samistudio-chat-history';
+function createId(prefix: string) {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function getElapsedMs(startedAt?: number) {
+  return startedAt ? Math.max(0, Date.now() - startedAt) : 0;
+}
+
+function normalizeText(text: string) {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function isAppRequest(text: string) {
+  const normalized = normalizeText(text);
+  const action =
+    /\b(crea(?:me)?|crear|haz(?:me)?|hacer|genera(?:me)?|generar|construye(?:me)?|desarrolla(?:me)?|disena(?:me)?|monta(?:me)?|prepara(?:me)?|adapta(?:lo|la|me)?|convierte(?:lo|la)?|pasa(?:lo|la|me)?|pon(?:lo|la)?)\b/.test(
+      normalized
+    );
+  const product =
+    /\b(app|aplicacion|movil|mobile|android|reloj|watch|wear|wear os|calculadora|contador|lista|temporizador|cronometro|agenda|notas|juego)\b/.test(
+      normalized
+    );
+
+  if (action && product) return true;
+  return /\b(crea|crear|haz|hacer|genera|generar|construye|desarrolla|disena|diseña)\b/.test(normalized)
+    && /\b(app|aplicacion|aplicacion|movil|android|reloj|watch|wear|calculadora|contador|lista)\b/.test(normalized);
+}
+
+function inferDeviceFromText(text: string): DeviceSpec {
+  const normalized = normalizeText(text);
+  const wantsWatch = /\b(reloj|watch|wear|wear os|galaxy watch|smartwatch)\b/.test(normalized);
+  const wantsSquare = /\b(cuadrad|square|rectangular)\b/.test(normalized);
+
+  return {
+    deviceType: wantsWatch ? 'watch' : 'phone',
+    watchShape: wantsWatch && wantsSquare ? 'square' : 'round',
+  };
+}
+
+function shortAppDescription(text: string) {
+  const cleaned = text
+    .replace(/\s+/g, ' ')
+    .replace(/^(por favor\s*)?/i, '')
+    .trim();
+
+  const match = cleaned.match(/(?:crea|crear|haz|hacer|genera|generar|construye|desarrolla|dise(?:n|ñ)a)(?:me)?\s+(.*)$/i);
+  const adaptMatch = cleaned.match(/(?:monta|prepara|adapta|convierte|pasa|pon)(?:me|lo|la)?\s+(.*)$/i);
+  const description = (adaptMatch?.[1] || match?.[1] || cleaned).replace(/\.$/, '').trim();
+
+  if (!description) return 'la app que has pedido';
+  return description.length > 96 ? `${description.slice(0, 93).trim()}...` : description;
+}
+
+function makeIntro(text: string, spec: DeviceSpec) {
+  const target =
+    spec.deviceType === 'watch'
+      ? spec.watchShape === 'square'
+        ? 'optimizada para un reloj Wear OS cuadrado'
+        : 'optimizada para una pantalla circular de reloj Wear OS'
+      : 'para telefono Android';
+
+  return `Genial, me pongo a crear ${shortAppDescription(text)}, ${target}. Primero preparo la estructura y luego genero el App.js completo para la preview.`;
+}
+
+function stripStudioMetadata(text: string) {
+  return text.replace(/<!--\s*samistudio:[\s\S]*?-->/gi, '').trim();
+}
+
+function extractMetadata(text: string): Partial<DeviceSpec> {
+  const match = text.match(/<!--\s*samistudio:([\s\S]*?)-->/i);
+  if (!match) return {};
+
+  const metadata = match[1].split(';').reduce<Record<string, string>>((acc, pair) => {
+    const [key, value] = pair.split('=').map((part) => part?.trim());
+    if (key && value) acc[key] = value;
+    return acc;
+  }, {});
+
+  const target = metadata.target === 'watch' ? 'watch' : metadata.target === 'phone' ? 'phone' : undefined;
+  const shape = metadata.shape === 'square' ? 'square' : metadata.shape === 'round' ? 'round' : undefined;
+
+  return {
+    deviceType: target,
+    watchShape: shape,
+    title: metadata.title,
+  };
+}
+
+function extractCodeBlock(text: string): { code: string | null; summary: string; codeStarted: boolean } {
+  const completeBlocks = [...text.matchAll(/```(?:jsx|tsx|js|javascript)?\s*\n([\s\S]*?)```/gi)];
+  if (completeBlocks.length > 0) {
+    const bestBlock =
+      completeBlocks.find((block) => /from ['"]react-native['"]|StyleSheet\.create|export default/i.test(block[1])) ||
+      completeBlocks[completeBlocks.length - 1];
+    const summary = stripStudioMetadata(text.slice(0, bestBlock.index).trim());
+    return { code: bestBlock[1].trim(), summary, codeStarted: true };
+  }
+
+  const openBlock = text.match(/```(?:jsx|tsx|js|javascript)?\s*\n/i);
+  if (openBlock) {
+    const summary = stripStudioMetadata(text.slice(0, openBlock.index).trim());
+    return { code: null, summary, codeStarted: true };
+  }
+
+  return { code: null, summary: stripStudioMetadata(text), codeStarted: false };
+}
+
+function isReactNativeAppCode(code: string) {
+  return /from ['"]react-native['"]/.test(code)
+    && /(export\s+default|StyleSheet\.create|return\s*\()/.test(code);
+}
 
 function loadHistory(): Message[] {
   if (typeof window === 'undefined') return [];
@@ -32,9 +135,7 @@ function loadHistory(): Message[] {
     const stored = localStorage.getItem(CHAT_HISTORY_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
+      if (Array.isArray(parsed)) return parsed;
     }
   } catch {
     // ignore
@@ -45,7 +146,7 @@ function loadHistory(): Message[] {
 function saveHistory(messages: Message[]) {
   if (typeof window === 'undefined') return;
   try {
-    const chatMessages = messages.filter((m) => m.role !== 'system');
+    const chatMessages = messages.filter((message) => message.role !== 'system');
     localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(chatMessages));
   } catch {
     // ignore
@@ -55,157 +156,199 @@ function saveHistory(messages: Message[]) {
 export function useChat(
   model: string,
   apiKey: string,
-  onCodeGenerated?: (code: string) => void
+  responseMode: ResponseMode,
+  onCodeGenerated?: (code: string, device: DeviceSpec) => Promise<unknown> | unknown,
+  onDeviceDetected?: (device: DeviceSpec) => void
 ) {
-  const [messages, setMessages] = useState<Message[]>(() => [
-    { role: 'system', content: SYSTEM_PROMPT },
-    ...loadHistory(),
-  ]);
+  const [messages, setMessages] = useState<Message[]>(() => [createSystemMessage()]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const { send, stop, isStreaming, progressStep } = useOllamaStream();
   const assistantContentRef = useRef('');
 
   const clearHistory = useCallback(() => {
-    setMessages([{ role: 'system', content: SYSTEM_PROMPT }]);
+    setMessages([createSystemMessage()]);
     if (typeof window !== 'undefined') {
       localStorage.removeItem(CHAT_HISTORY_KEY);
     }
   }, []);
 
+  const patchAssistant = useCallback((assistantId: string, patch: Partial<Message> | ((message: Message) => Partial<Message>)) => {
+    setMessages((prev) =>
+      prev.map((message) => {
+        if (message.id !== assistantId) return message;
+        const nextPatch = typeof patch === 'function' ? patch(message) : patch;
+        return { ...message, ...nextPatch };
+      })
+    );
+  }, []);
+
   const sendMessage = useCallback(
     async (userText: string) => {
-      const isAppRequest = /crea|haz|genera|app|aplicacion|aplicación/i.test(userText);
+      const appRequest = isAppRequest(userText);
+      const guessedDevice = inferDeviceFromText(userText);
+      if (appRequest) onDeviceDetected?.(guessedDevice);
 
-      const newMessages: Message[] = [
+      const userMessage: Message = {
+        id: createId('user'),
+        role: 'user',
+        content: userText,
+        timestamp: Date.now(),
+      };
+
+      const assistantId = createId('assistant');
+      const workingStartedAt = Date.now();
+      const assistantMessage: Message = {
+        id: assistantId,
+        role: 'assistant',
+        content: appRequest ? makeIntro(userText, guessedDevice) : '',
+        timestamp: workingStartedAt,
+        deviceType: guessedDevice.deviceType,
+        watchShape: guessedDevice.watchShape,
+        workingStartedAt,
+      };
+
+      const targetInstruction = appRequest
+        ? {
+            role: 'system' as const,
+            content: [
+              `Dispositivo inicial inferido por la interfaz: ${guessedDevice.deviceType}.`,
+              `Forma de reloj inicial: ${guessedDevice.watchShape}.`,
+              'Si el prompt contradice esa inferencia, corrige el comentario samistudio.',
+              'Genera una sola app completa y usable.',
+              'La preview usa siluetas exactas: phone 390x834 con esquinas redondeadas y safe area; watch round 220x220 circular; watch square 240x240 con esquinas redondeadas.',
+              'Evita widths fijos grandes; usa flex, aspectRatio, gap y botones que entren completos en pantalla.',
+              'Si el usuario pide adaptar a telefono/reloj o cambiar de dispositivo, conserva la funcionalidad, textos, unidades, estado y comportamiento del codigo anterior salvo que pida cambios concretos.',
+              'Temporizador/timer significa cuenta atras configurable. Cronometro significa conteo hacia arriba. No los intercambies.',
+            ].join('\n'),
+          }
+        : null;
+
+      const apiMessages: Message[] = [
         ...messages,
-        { role: 'user', content: userText, timestamp: Date.now() },
+        ...(targetInstruction ? [targetInstruction] : []),
+        userMessage,
       ];
-      setMessages(newMessages);
 
+      setMessages((prev) => [...prev, userMessage, assistantMessage]);
       assistantContentRef.current = '';
 
-      const confirmationIndex = newMessages.length;
-      if (isAppRequest) {
-        setMessages((prev) => [
-          ...prev,
-          { role: 'assistant', content: '¡Genial! Voy a crear tu app. Pensando...', timestamp: Date.now() },
-        ]);
-      } else {
-        setMessages((prev) => [...prev, { role: 'assistant', content: '', timestamp: Date.now() }]);
-      }
-
       await send(
-        { model, messages: newMessages, apiKey },
+        { model, messages: apiMessages, apiKey, responseMode },
         (chunk) => {
           assistantContentRef.current += chunk;
+          const metadata = extractMetadata(assistantContentRef.current);
+          const currentDevice: DeviceSpec = {
+            deviceType: metadata.deviceType || guessedDevice.deviceType,
+            watchShape: metadata.watchShape || guessedDevice.watchShape,
+            title: metadata.title,
+          };
 
-          if (isAppRequest) {
-            // Durante la escritura simulada, ir reemplazando la confirmacion
-            const { summary } = extractCodeBlock(assistantContentRef.current);
-            const displayContent = summary || assistantContentRef.current;
-
-            setMessages((prev) => {
-              const next = [...prev];
-              next[next.length - 1] = {
-                role: 'assistant',
-                content: displayContent,
-              };
-              return next;
-            });
-          } else {
-            setMessages((prev) => {
-              const next = [...prev];
-              next[next.length - 1] = {
-                role: 'assistant',
-                content: assistantContentRef.current,
-              };
-              return next;
-            });
+          if (metadata.deviceType || metadata.watchShape) {
+            onDeviceDetected?.(currentDevice);
           }
+
+          const { summary, codeStarted } = extractCodeBlock(assistantContentRef.current);
+          const shouldShowBuildFlow = appRequest || codeStarted;
+          if (codeStarted) onDeviceDetected?.(currentDevice);
+
+          const displayContent = shouldShowBuildFlow
+            ? [makeIntro(userText, currentDevice), summary].filter(Boolean).join('\n\n')
+            : summary || stripStudioMetadata(assistantContentRef.current);
+
+          patchAssistant(assistantId, {
+            content: displayContent,
+            deviceType: currentDevice.deviceType,
+            watchShape: currentDevice.watchShape,
+            workflow: undefined,
+          });
         },
-        () => {
-          // Streaming terminado
+        async () => {
+          const metadata = extractMetadata(assistantContentRef.current);
+          const finalDevice: DeviceSpec = {
+            deviceType: metadata.deviceType || guessedDevice.deviceType,
+            watchShape: metadata.watchShape || guessedDevice.watchShape,
+            title: metadata.title,
+          };
           const { code, summary } = extractCodeBlock(assistantContentRef.current);
 
-          if (code) {
-            // Si hay codigo, mostrar resumen + mensaje de confirmacion
-            const finalContent = summary
-              ? `${summary}\n\n✅ Codigo generado. Previsualizando en el panel derecho...`
-              : '✅ Codigo generado. Previsualizando en el panel derecho...';
+          const generatedApp = Boolean(code && (appRequest || isReactNativeAppCode(code)));
 
-            setMessages((prev) => {
-              const next = [...prev];
-              next[next.length - 1] = {
-                role: 'assistant',
-                content: finalContent,
-              };
-              return next;
+          if (code && generatedApp) {
+            patchAssistant(assistantId, {
+              content: [makeIntro(userText, finalDevice), summary, 'Estoy montando la preview interactiva...']
+                .filter(Boolean)
+                .join('\n\n'),
+              deviceType: finalDevice.deviceType,
+              watchShape: finalDevice.watchShape,
+              workflow: undefined,
             });
 
-            // Notificar al padre para que cree el Snack
-            onCodeGenerated?.(code);
+            onDeviceDetected?.(finalDevice);
+
+            try {
+              await onCodeGenerated?.(code, finalDevice);
+              patchAssistant(assistantId, {
+                content: [makeIntro(userText, finalDevice), summary, 'Listo, ya tienes la preview interactiva en el panel derecho.']
+                  .filter(Boolean)
+                  .join('\n\n'),
+                workflow: undefined,
+                workingStartedAt: undefined,
+                workedMs: getElapsedMs(workingStartedAt),
+              });
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+              patchAssistant(assistantId, (message) => ({
+                content: `${message.content}\n\nNo he podido preparar la preview: ${errorMessage}`,
+                workflow: undefined,
+                workingStartedAt: undefined,
+                workedMs: getElapsedMs(workingStartedAt),
+              }));
+            }
           } else {
-            // Sin codigo, mostrar la respuesta completa
-            setMessages((prev) => {
-              const next = [...prev];
-              next[next.length - 1] = {
-                role: 'assistant',
-                content: assistantContentRef.current,
-              };
-              return next;
+            patchAssistant(assistantId, {
+              content: stripStudioMetadata(assistantContentRef.current),
+              workflow: undefined,
+              workingStartedAt: undefined,
+              workedMs: getElapsedMs(workingStartedAt),
             });
           }
         },
         (err) => {
-          setMessages((prev) => {
-            const next = [...prev];
-            next[next.length - 1] = {
-              role: 'assistant',
-              content: `Error: ${err.message}`,
-            };
-            return next;
+          patchAssistant(assistantId, {
+            content: `Error: ${err.message}`,
+            workflow: undefined,
+            workingStartedAt: undefined,
+            workedMs: getElapsedMs(workingStartedAt),
           });
-        },
-        (step) => {
-          if (isAppRequest && step === 'thinking') {
-            setMessages((prev) => {
-              const next = [...prev];
-              if (next[confirmationIndex]?.role === 'assistant') {
-                next[confirmationIndex] = {
-                  ...next[confirmationIndex],
-                  content: '¡Genial! Voy a crear tu app. Pensando...',
-                };
-              }
-              return next;
-            });
-          }
-          if (isAppRequest && step === 'generating') {
-            setMessages((prev) => {
-              const next = [...prev];
-              if (next[confirmationIndex]?.role === 'assistant') {
-                next[confirmationIndex] = {
-                  ...next[confirmationIndex],
-                  content: '¡Genial! Voy a crear tu app. Generando código...',
-                };
-              }
-              return next;
-            });
-          }
         }
       );
     },
-    [messages, model, apiKey, send, onCodeGenerated]
+    [apiKey, messages, model, onCodeGenerated, onDeviceDetected, patchAssistant, responseMode, send]
   );
 
   const stopStreaming = useCallback(() => {
     stop();
   }, [stop]);
 
-  const chatMessages = messages.filter((m) => m.role !== 'system');
+  const chatMessages = messages.filter((message) => message.role !== 'system');
 
-  // Guardar historial cuando cambian los mensajes
   useEffect(() => {
+    const loadedHistory = loadHistory();
+    const timeoutId = window.setTimeout(() => {
+      setMessages((current) => {
+        const hasUserSessionMessages = current.some((message) => message.role !== 'system');
+        return hasUserSessionMessages ? current : [createSystemMessage(), ...loadedHistory];
+      });
+      setHistoryLoaded(true);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  useEffect(() => {
+    if (!historyLoaded) return;
     saveHistory(messages);
-  }, [messages]);
+  }, [historyLoaded, messages]);
 
   return {
     messages: chatMessages,

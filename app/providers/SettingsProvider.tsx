@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AppSettings } from '@/app/types';
-import { DEFAULT_MODEL } from '@/app/lib/constants';
+import { DEFAULT_MODEL, DEFAULT_RESPONSE_MODE } from '@/app/lib/constants';
 
 interface SettingsContextType {
   settings: AppSettings;
@@ -15,6 +15,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>({
     apiKey: '',
     model: DEFAULT_MODEL,
+    responseMode: DEFAULT_RESPONSE_MODE,
   });
 
   useEffect(() => {
@@ -22,10 +23,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        setSettings({
+        window.setTimeout(() => setSettings({
           apiKey: parsed.apiKey || '',
           model: parsed.model || DEFAULT_MODEL,
-        });
+          responseMode: parsed.responseMode || DEFAULT_RESPONSE_MODE,
+        }), 0);
       } catch {
         // ignore
       }

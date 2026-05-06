@@ -2,21 +2,27 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Key, Cpu, Globe, Heart, Code2, Moon, Sun } from 'lucide-react';
+import { Brain, Check, Code2, Cpu, Gauge, Globe, Key, Moon, Sparkles, Sun, X, Zap } from 'lucide-react';
 import { useSettings } from '@/app/providers/SettingsProvider';
 import { useTheme } from '@/app/providers/ThemeProvider';
-import { OLLAMA_MODELS } from '@/app/lib/constants';
+import { OLLAMA_MODELS, RESPONSE_MODES } from '@/app/lib/constants';
+import type { ResponseMode } from '@/app/types';
 
 interface SettingsPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+const MODE_ICONS: Record<ResponseMode, typeof Gauge> = {
+  balanced: Gauge,
+  fast: Zap,
+  deep: Brain,
+};
+
 export function SettingsPanel({ open, onOpenChange }: SettingsPanelProps) {
   const { settings, updateSettings } = useSettings();
   const { theme, toggleTheme } = useTheme();
-
-  const isCustomModel = !OLLAMA_MODELS.some((m) => m.id === settings.model);
+  const isCustomModel = !OLLAMA_MODELS.some((model) => model.id === settings.model);
 
   return (
     <AnimatePresence>
@@ -27,236 +33,207 @@ export function SettingsPanel({ open, onOpenChange }: SettingsPanelProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
+            className="fixed inset-0 z-[60] bg-black/55 backdrop-blur-sm"
             onClick={() => onOpenChange(false)}
           />
+
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, scale: 0.96, y: 18 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed inset-4 md:inset-8 lg:inset-16 z-[70] bg-bone-50 rounded-3xl shadow-2xl overflow-hidden flex flex-col"
+            exit={{ opacity: 0, scale: 0.96, y: 18 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed inset-3 z-[70] flex flex-col overflow-hidden rounded-3xl bg-bone-50 shadow-2xl md:inset-8 xl:inset-14"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between px-8 py-6 border-b border-bone-200">
+            <div className="flex items-center justify-between border-b border-bone-200 px-6 py-5 md:px-8">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-water-500 flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-white" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-water-500 shadow-lg shadow-water-500/25">
+                  <Sparkles className="h-5 w-5 text-white" />
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Ajustes</h2>
-                  <p className="text-sm text-gray-500">Configura tu experiencia</p>
+                  <p className="text-sm text-gray-500">Modelo, API y comportamiento</p>
                 </div>
               </div>
               <button
                 onClick={() => onOpenChange(false)}
-                className="p-2.5 rounded-xl hover:bg-bone-100 transition-colors border border-bone-200"
+                className="rounded-xl border border-bone-200 p-2.5 transition-colors hover:bg-bone-100"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="h-5 w-5 text-gray-500" />
               </button>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-8">
-              <div className="max-w-2xl mx-auto space-y-8">
-                {/* Modelo */}
-                <div className="space-y-3">
+            <div className="min-h-0 flex-1 overflow-y-auto p-6 md:p-8">
+              <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+                <section className="space-y-4 rounded-2xl border border-bone-200 bg-white p-5 shadow-sm">
                   <div className="flex items-center gap-2">
-                    <Cpu className="w-5 h-5 text-water-600" />
-                    <label className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                      Modelo de Ollama
-                    </label>
+                    <Cpu className="h-5 w-5 text-water-600" />
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Modelo de Ollama</h3>
                   </div>
-                  <p className="text-sm text-gray-500">
-                    Selecciona el modelo de IA que generara tu codigo
-                  </p>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {OLLAMA_MODELS.map((model) => (
-                      <button
-                        key={model.id}
-                        onClick={() => updateSettings({ model: model.id })}
-                        className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
-                          settings.model === model.id
-                            ? 'border-water-500 bg-water-50 shadow-md'
-                            : 'border-bone-200 hover:border-water-300 hover:bg-bone-50'
-                        }`}
-                      >
-                        <div
-                          className={`w-3 h-3 rounded-full ${
-                            settings.model === model.id ? 'bg-water-500' : 'bg-bone-300'
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {OLLAMA_MODELS.map((model) => {
+                      const active = settings.model === model.id;
+                      return (
+                        <button
+                          key={model.id}
+                          onClick={() => updateSettings({ model: model.id })}
+                          className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
+                            active
+                              ? 'border-water-400 bg-water-50 shadow-sm'
+                              : 'border-bone-200 bg-bone-50 hover:border-water-300'
                           }`}
-                        />
-                        <div>
-                          <span className="block font-medium text-gray-900 dark:text-gray-100">{model.name}</span>
-                          <span className="text-xs text-gray-500 font-mono">{model.id}</span>
-                        </div>
-                      </button>
-                    ))}
+                        >
+                          <span
+                            className={`mt-1 flex h-4 w-4 items-center justify-center rounded-full ${
+                              active ? 'bg-water-500 text-white' : 'bg-bone-300'
+                            }`}
+                          >
+                            {active && <Check className="h-3 w-3" />}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-sm font-semibold text-gray-900 dark:text-gray-100">{model.name}</span>
+                            <span className="block truncate font-mono text-xs text-gray-500">{model.id}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
 
                   <button
-                    onClick={() =>
-                      updateSettings({
-                        model: isCustomModel ? settings.model : 'custom',
-                      })
-                    }
-                    className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
-                      isCustomModel
-                        ? 'border-water-500 bg-water-50 shadow-md'
-                        : 'border-bone-200 hover:border-water-300 hover:bg-bone-50'
+                    onClick={() => updateSettings({ model: isCustomModel ? settings.model : 'custom-model:cloud' })}
+                    className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all ${
+                      isCustomModel ? 'border-water-400 bg-water-50 shadow-sm' : 'border-bone-200 bg-bone-50 hover:border-water-300'
                     }`}
                   >
-                    <div
-                      className={`w-3 h-3 rounded-full ${
-                        isCustomModel ? 'bg-water-500' : 'bg-bone-300'
-                      }`}
-                    />
-                    <span className="font-medium text-gray-900 dark:text-gray-100">Otro modelo...</span>
+                    <span className={`h-4 w-4 rounded-full ${isCustomModel ? 'bg-water-500' : 'bg-bone-300'}`} />
+                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">Modelo personalizado</span>
                   </button>
 
                   {isCustomModel && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      className="mt-3"
-                    >
-                      <input
-                        type="text"
-                        placeholder="nombre-del-modelo:cloud"
-                        value={settings.model}
-                        onChange={(e) => updateSettings({ model: e.target.value })}
-                        className="w-full px-4 py-3 rounded-xl border-2 border-bone-200 bg-bone-50 text-gray-900 dark:text-gray-100 text-sm placeholder:text-gray-400 focus:outline-none focus:border-water-500 focus:ring-4 focus:ring-water-100 transition-all"
-                      />
-                    </motion.div>
-                  )}
-                </div>
-
-                {/* Divider */}
-                <div className="h-px bg-bone-200" />
-
-                {/* API Key */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Key className="w-5 h-5 text-water-600" />
-                    <label className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                      API Key de Ollama Cloud
-                    </label>
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    Tu clave de acceso a Ollama Cloud. Se almacena localmente en tu navegador.
-                  </p>
-
-                  <div className="relative">
-                    <input
-                      type="password"
-                      placeholder="sk-..."
-                      value={settings.apiKey}
-                      onChange={(e) => updateSettings({ apiKey: e.target.value })}
-                      className="w-full px-4 py-3 rounded-xl border-2 border-bone-200 bg-bone-50 text-gray-900 dark:text-gray-100 text-sm placeholder:text-gray-400 focus:outline-none focus:border-water-500 focus:ring-4 focus:ring-water-100 transition-all pr-24"
+                    <motion.input
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      type="text"
+                      placeholder="nombre-del-modelo:cloud"
+                      value={settings.model}
+                      onChange={(event) => updateSettings({ model: event.target.value })}
+                      className="w-full rounded-xl border-2 border-bone-200 bg-bone-50 px-4 py-3 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-water-500 focus:ring-4 focus:ring-water-100 dark:text-gray-100"
                     />
-                    <button
-                      onClick={() => updateSettings({ apiKey: '' })}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-red-500 transition-colors"
-                    >
-                      Borrar
-                    </button>
-                  </div>
-
-                  {!settings.apiKey && (
-                    <div className="flex items-center gap-2 text-sm text-amber-600">
-                      <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                      Introduce tu API Key de Ollama Cloud para empezar
-                    </div>
                   )}
-                  {settings.apiKey && (
-                    <div className="flex items-center gap-2 text-sm text-green-600">
-                      <div className="w-2 h-2 rounded-full bg-green-500" />
-                      API Key configurada
-                    </div>
-                  )}
-                </div>
+                </section>
 
-                {/* Divider */}
-                <div className="h-px bg-bone-200" />
-
-                {/* Apariencia */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Moon className="w-5 h-5 text-water-600" />
-                    <label className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                      Apariencia
-                    </label>
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    Elige entre modo claro y oscuro
-                  </p>
-                  <button
-                    onClick={toggleTheme}
-                    className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
-                      theme === 'dark'
-                        ? 'border-water-500 bg-water-50 shadow-md'
-                        : 'border-bone-200 hover:border-water-300 hover:bg-bone-50'
-                    }`}
-                  >
-                    <div className={`w-3 h-3 rounded-full ${theme === 'dark' ? 'bg-water-500' : 'bg-bone-300'}`} />
+                <div className="space-y-6">
+                  <section className="space-y-4 rounded-2xl border border-bone-200 bg-white p-5 shadow-sm">
                     <div className="flex items-center gap-2">
-                      {theme === 'dark' ? (
-                        <>
-                          <Moon className="w-4 h-4 text-gray-700" />
-                          <span className="font-medium text-gray-900 dark:text-gray-100">Modo oscuro</span>
-                        </>
-                      ) : (
-                        <>
-                          <Sun className="w-4 h-4 text-gray-700" />
-                          <span className="font-medium text-gray-900 dark:text-gray-100">Modo claro</span>
-                        </>
-                      )}
+                      <Gauge className="h-5 w-5 text-water-600" />
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Respuesta</h3>
                     </div>
-                  </button>
-                </div>
+                    <div className="grid gap-2">
+                      {RESPONSE_MODES.map((mode) => {
+                        const Icon = MODE_ICONS[mode.id];
+                        const active = settings.responseMode === mode.id;
 
-                {/* Divider */}
-                <div className="h-px bg-bone-200" />
+                        return (
+                          <button
+                            key={mode.id}
+                            onClick={() => updateSettings({ responseMode: mode.id })}
+                            className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${
+                              active
+                                ? 'border-water-400 bg-water-50 shadow-sm'
+                                : 'border-bone-200 bg-bone-50 hover:border-water-300'
+                            }`}
+                          >
+                            <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${active ? 'bg-water-500 text-white' : 'bg-bone-200 text-gray-500'}`}>
+                              <Icon className="h-4 w-4" />
+                            </span>
+                            <span>
+                              <span className="block text-sm font-semibold text-gray-900 dark:text-gray-100">{mode.name}</span>
+                              <span className="text-xs text-gray-500">{mode.description}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
 
-                {/* Acerca de */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Heart className="w-5 h-5 text-water-600" />
-                    <label className="text-base font-semibold text-gray-900 dark:text-gray-100">Acerca de</label>
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    SamiStudio es un generador de apps moviles con IA.
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <a
-                      href="https://github.com/samilososami/appstudio"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-bone-100 border border-bone-200 text-sm text-gray-600 hover:bg-bone-200 hover:text-gray-900 dark:text-gray-100 transition-all"
+                  <section className="space-y-4 rounded-2xl border border-bone-200 bg-white p-5 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <Key className="h-5 w-5 text-water-600" />
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">API Key</h3>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="password"
+                        placeholder="ollama_..."
+                        value={settings.apiKey}
+                        onChange={(event) => updateSettings({ apiKey: event.target.value })}
+                        className="w-full rounded-xl border-2 border-bone-200 bg-bone-50 px-4 py-3 pr-20 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-water-500 focus:ring-4 focus:ring-water-100 dark:text-gray-100"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => updateSettings({ apiKey: '' })}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:bg-red-50 hover:text-red-500"
+                      >
+                        Borrar
+                      </button>
+                    </div>
+                    <div className={`flex items-center gap-2 text-sm ${settings.apiKey ? 'text-green-600' : 'text-amber-600'}`}>
+                      <span className={`h-2 w-2 rounded-full ${settings.apiKey ? 'bg-green-500' : 'bg-amber-500'}`} />
+                      {settings.apiKey ? 'API Key configurada' : 'API Key pendiente'}
+                    </div>
+                  </section>
+
+                  <section className="space-y-4 rounded-2xl border border-bone-200 bg-white p-5 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <Moon className="h-5 w-5 text-water-600" />
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Apariencia</h3>
+                    </div>
+                    <button
+                      onClick={toggleTheme}
+                      className="flex w-full items-center justify-between rounded-xl border border-bone-200 bg-bone-50 p-3 text-left transition-all hover:border-water-300"
                     >
-                      <Code2 className="w-4 h-4" />
-                      GitHub
-                    </a>
-                    <a
-                      href="https://samilososami.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-bone-100 border border-bone-200 text-sm text-gray-600 hover:bg-bone-200 hover:text-gray-900 dark:text-gray-100 transition-all"
-                    >
-                      <Globe className="w-4 h-4" />
-                      Web
-                    </a>
-                  </div>
+                      <span className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                        {theme === 'dark' ? 'Modo oscuro' : 'Modo claro'}
+                      </span>
+                      <span className="rounded-full bg-bone-200 px-2 py-1 text-xs text-gray-500">Cambiar</span>
+                    </button>
+                  </section>
+
+                  <section className="space-y-4 rounded-2xl border border-bone-200 bg-white p-5 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <Code2 className="h-5 w-5 text-water-600" />
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Proyecto</h3>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <a
+                        href="https://github.com/samilososami/appstudio"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 rounded-xl border border-bone-200 bg-bone-50 px-3 py-2 text-sm text-gray-600 transition-all hover:bg-bone-100 hover:text-gray-900"
+                      >
+                        <Code2 className="h-4 w-4" />
+                        GitHub
+                      </a>
+                      <a
+                        href="https://samilososami.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 rounded-xl border border-bone-200 bg-bone-50 px-3 py-2 text-sm text-gray-600 transition-all hover:bg-bone-100 hover:text-gray-900"
+                      >
+                        <Globe className="h-4 w-4" />
+                        Web
+                      </a>
+                    </div>
+                  </section>
                 </div>
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="px-8 py-4 border-t border-bone-200 bg-bone-50">
+            <div className="border-t border-bone-200 bg-bone-50 px-6 py-4 md:px-8">
               <button
                 onClick={() => onOpenChange(false)}
-                className="w-full py-3 rounded-xl bg-water-500 text-white font-semibold hover:bg-water-600 transition-colors shadow-lg shadow-water-500/25"
+                className="w-full rounded-xl bg-water-500 py-3 font-semibold text-white shadow-lg shadow-water-500/25 transition-colors hover:bg-water-600"
               >
                 Guardar y cerrar
               </button>

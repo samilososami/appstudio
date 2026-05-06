@@ -26,8 +26,9 @@ export function useSnack() {
       const data: SnackData = await res.json();
       setSnackData(data);
       return data;
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error creando Snack';
+      setError(message);
       return null;
     } finally {
       setIsCreating(false);

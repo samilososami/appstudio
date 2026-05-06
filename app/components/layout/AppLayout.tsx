@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, MessageSquare, Settings, X, Sparkles, AlertCircle } from 'lucide-react';
+import { AlertCircle, Menu, Sparkles, X } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { SettingsPanel } from './SettingsPanel';
 import { useSettings } from '@/app/providers/SettingsProvider';
@@ -20,7 +20,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   useKeyboardShortcuts({
     onFocusInput: () => {
-      const input = document.getElementById('chat-input-field') as HTMLInputElement | null;
+      const input = document.getElementById('chat-input-field') as HTMLTextAreaElement | null;
       if (input) {
         input.focus();
         input.scrollIntoView({ behavior: 'smooth', block: 'center' });

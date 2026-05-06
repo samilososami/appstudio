@@ -10,28 +10,38 @@ import { PreviewPanel } from './components/preview/PreviewPanel';
 import { useChat } from './hooks/useChat';
 import { useSettings } from './providers/SettingsProvider';
 import { useSnack } from './hooks/useSnack';
-import { DeviceType } from './types';
+import type { DeviceSpec, DeviceType, WatchShape } from './types';
 
 export default function Home() {
   const { settings } = useSettings();
   const { snackData, isCreating, error, createSnack } = useSnack();
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<'chat' | 'preview'>('chat');
+  const [deviceType, setDeviceType] = useState<DeviceType>('phone');
+  const [watchShape, setWatchShape] = useState<WatchShape>('round');
+
+  const handleDeviceDetected = (device: DeviceSpec) => {
+    setDeviceType(device.deviceType);
+    setWatchShape(device.watchShape || 'round');
+  };
+
   const { messages, isStreaming, sendMessage, stopStreaming, progressStep, clearHistory } = useChat(
     settings.model || 'kimi-k2.6:cloud',
     settings.apiKey,
-    async (code: string) => {
+    settings.responseMode,
+    async (code: string, device: DeviceSpec) => {
       setGeneratedCode(code);
-      await createSnack(code);
-    }
+      handleDeviceDetected(device);
+      await createSnack(code, device.title || 'SamiStudio App');
+    },
+    handleDeviceDetected
   );
-  const [deviceType, setDeviceType] = useState<DeviceType>('phone');
 
   return (
     <AppLayout>
       {/* Desktop layout */}
       <Group orientation="horizontal" className="h-full hidden lg:flex">
-        <Panel defaultSize={50} minSize={30}>
+        <Panel defaultSize={60} minSize={42}>
           <ChatPanel
             messages={messages}
             isStreaming={isStreaming}
@@ -44,13 +54,15 @@ export default function Home() {
 
         <Separator className="w-1 bg-bone-300 hover:bg-water-400 transition-colors cursor-col-resize" />
 
-        <Panel defaultSize={50} minSize={30}>
+        <Panel defaultSize={40} minSize={28}>
           <PreviewPanel
             deviceType={deviceType}
+            watchShape={watchShape}
             snackId={snackData?.snackId || null}
             snackUrl={snackData?.url || null}
+            runtimeUrl={snackData?.runtimeUrl || null}
             generatedCode={generatedCode}
-            onDeviceChange={setDeviceType}
+            isGenerating={isStreaming}
             isCreating={isCreating}
             error={error}
           />
@@ -115,10 +127,12 @@ export default function Home() {
             >
               <PreviewPanel
                 deviceType={deviceType}
+                watchShape={watchShape}
                 snackId={snackData?.snackId || null}
                 snackUrl={snackData?.url || null}
+                runtimeUrl={snackData?.runtimeUrl || null}
                 generatedCode={generatedCode}
-                onDeviceChange={setDeviceType}
+                isGenerating={isStreaming}
                 isCreating={isCreating}
                 error={error}
               />

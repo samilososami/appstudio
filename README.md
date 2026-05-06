@@ -1,123 +1,134 @@
 # AppStudio
 
-Generador de aplicaciones moviles con inteligencia artificial. Crea apps para Android y Galaxy Watch mediante prompts en lenguaje natural.
+AI app builder for Android and Wear OS. Describe an idea in Spanish, and AppStudio generates a React Native/Expo app, detects the right device target, and shows a direct interactive preview inside a phone or watch mockup.
 
 ![Preview](preview3.png)
 
-## Descripcion
+## What It Does
 
-AppStudio es una plataforma web que permite generar aplicaciones moviles funcionales a partir de descripciones en espanol. Utiliza modelos de lenguaje de Ollama Cloud para producir codigo React Native/Expo, y lo previsualiza en tiempo real dentro de un mockup de dispositivo.
+AppStudio is a web-based app generator inspired by tools like Rork, Bloom, Lovable and Codex-style agent UX. It uses Ollama Cloud chat models to produce a single-file Expo app, then runs that app through Expo Snack's runtime without showing the Snack editor.
 
-## Caracteristicas
+The interface is built around a chat and a live device preview. The AI can target a phone, circular watch, or square watch, and the UI switches the mockup automatically.
 
-- **Chat con IA**: Interfaz conversacional con streaming simulado para mejor UX
-- **Generacion de codigo**: Extrae bloques Markdown y los envia directamente a Expo Snack
-- **Preview en tiempo real**: Visualiza la app generada dentro de un mockup de telefono Android o Galaxy Watch
-- **Soporte multi-dispositivo**: Alterna entre telefono y reloj con un toggle
-- **QR Code**: Genera codigo QR para abrir la app en Expo Go
-- **Markdown renderizado**: El chat muestra negritas, cursivas y codigo inline
-- **Proxy CORS**: Backend serverless que comunica con Ollama Cloud de forma segura
-- **Diseño minimalista**: Paleta de colores water + bone con animaciones suaves
+## Features
 
-## Tecnologias
+- AI chat for generating React Native and Expo apps
+- Automatic phone/watch target detection with AI-correctable metadata
+- Direct interactive preview using `snack-sdk` and `webPreviewURL`
+- Full-screen preview route that opens only the generated app
+- Phone and Wear OS mockups with logical device viewports
+- Circular and square watch preview support
+- Streaming Ollama responses with in-chat thinking animation
+- Elapsed work time while the AI is generating, plus final "Trabajo durante X"
+- Response modes: fast, balanced, and reasoning-focused
+- Markdown renderer with code blocks, lists, headings, links and inline code
+- Local settings for Ollama API key and model selection
+- Expo Go QR support for the generated Snack runtime
+- Dark/light theme support
 
-- [Next.js](https://nextjs.org) 16.2.4 con App Router
-- [React](https://react.dev) 19.2.4
-- [TypeScript](https://www.typescriptlang.org)
-- [Tailwind CSS](https://tailwindcss.com) v4 con colores personalizados
-- [Framer Motion](https://www.framer.com/motion/) para animaciones
-- [shadcn/ui](https://ui.shadcn.com) componentes base
-- [react-resizable-panels](https://github.com/bvaughn/react-resizable-panels)
-- [Ollama Cloud](https://ollama.com) API de generacion de codigo
-- [Expo Snack](https://snack.expo.dev) para preview y emulacion
-- [snack-sdk](https://www.npmjs.com/package/snack-sdk) creacion programatica de Snacks
+## Preview Model
 
-## Estructura del proyecto
+AppStudio does not embed the full Snack editor. It creates or runs a Snack session and renders only the app runtime:
 
+- Phone viewport: `390x834`
+- Circular watch viewport: `220x220`
+- Square watch viewport: `240x240`
+
+The mockup scales the logical viewport into the visible screen shape, so generated apps can be written against realistic dimensions while still fitting inside the visual device frame.
+
+## AI Contract
+
+When the user asks for an app, SamiBuilder returns:
+
+~~~text
+<!-- samistudio:target=phone|watch;shape=round|square;title=Short name -->
+
+```jsx
+// App.js
 ```
-samistudio/
-├── app/
-│   ├── api/
-│   │   ├── chat/route.ts          # Proxy a Ollama Cloud
-│   │   └── snack/route.ts         # Creacion de Snack via snack-sdk
-│   ├── components/
-│   │   ├── chat/
-│   │   │   ├── ChatPanel.tsx
-│   │   │   ├── ChatMessage.tsx
-│   │   │   ├── ChatMessageList.tsx
-│   │   │   ├── ChatInput.tsx
-│   │   │   └── MarkdownRenderer.tsx
-│   │   ├── layout/
-│   │   │   ├── AppLayout.tsx
-│   │   │   ├── Sidebar.tsx
-│   │   │   └── SettingsPanel.tsx
-│   │   └── preview/
-│   │       ├── PreviewPanel.tsx
-│   │       ├── PhoneMockup.tsx
-│   │       ├── WatchMockup.tsx
-│   │       ├── DeviceToggle.tsx
-│   │       └── ExpoActions.tsx
-│   ├── hooks/
-│   │   ├── useChat.ts
-│   │   ├── useOllamaStream.ts
-│   │   └── useSnack.ts
-│   ├── providers/
-│   │   └── SettingsProvider.tsx
-│   ├── lib/
-│   │   ├── constants.ts
-│   │   └── utils.ts
-│   ├── types/
-│   │   └── index.ts
-│   ├── page.tsx
-│   ├── layout.tsx
-│   └── globals.css
-├── public/
-├── next.config.ts
-├── tailwind.config.ts
-└── package.json
-```
+~~~
 
-## Variables de entorno
+The metadata lets the UI choose the correct mockup. The prompt also tells the model to preserve behavior when adapting an app between phone and watch, for example keeping a timer as a countdown rather than changing it into a stopwatch.
 
-No se requieren variables de entorno en el servidor. La API key de Ollama se almacena en el navegador (localStorage) y se envia al proxy `/api/chat` en el body de la peticion.
+## Tech Stack
 
-## Despliegue en Vercel
+- Next.js 16 App Router
+- React 19
+- TypeScript
+- Tailwind CSS v4
+- Framer Motion
+- Lucide React
+- react-resizable-panels
+- Ollama Cloud API
+- Expo Snack and `snack-sdk`
+- qrcode.react
 
-Haz clic en el boton para desplegar directamente:
+## Project Structure
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
-
-O utiliza la CLI:
-
-```bash
-npm i -g vercel
-vercel
+```text
+app/
+  api/
+    chat/route.ts       # Ollama Cloud proxy
+    snack/route.ts      # Programmatic Snack creation
+  components/
+    chat/               # Chat UI, markdown, input and messages
+    layout/             # App shell, sidebar, settings
+    preview/            # Mockups, runtime preview, full-screen preview
+  hooks/
+    useChat.ts
+    useOllamaStream.ts
+    useSnack.ts
+  providers/
+  lib/
+  types/
 ```
 
-## Desarrollo local
+## Local Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
+Open http://localhost:3000.
 
-## Uso
+## Usage
 
-1. Abre el panel de Ajustes (icono de engranaje) e introduce tu API key de Ollama Cloud
-2. Selecciona el modelo de IA (por defecto: `kimi-k2.6:cloud`)
-3. Escribe un prompt en el chat, por ejemplo: "Crea una app de contador de pasos para reloj"
-4. La IA generara el codigo y lo previsualizara automaticamente en el panel derecho
+1. Open Settings and add your Ollama Cloud API key.
+2. Pick a model and response mode.
+3. Ask for an app, for example:
+
+```text
+creame una app simple de calculadora para movil
+```
+
+```text
+crea un timer circular para reloj Wear OS
+```
+
+4. AppStudio generates the app and loads the interactive preview automatically.
+
+## Environment
+
+No server environment variables are required. The Ollama API key is stored locally in the browser and sent to `/api/chat`.
+
+## Deployment
+
+Deploy on Vercel or any Next.js-compatible host:
+
+```bash
+npm run build
+npm run start
+```
 
 ## Topics
 
-`nextjs` `react` `typescript` `tailwindcss` `artificial-intelligence` `ollama` `expo` `react-native` `mobile-apps` `code-generation` `no-code` `low-code` `galaxy-watch` `android` `framer-motion`
+`nextjs` `react` `typescript` `tailwindcss` `ai-app-builder` `ollama` `expo` `react-native` `expo-snack` `wear-os` `android` `no-code` `low-code` `code-generation` `framer-motion`
 
-## Autor
+## Author
 
 - GitHub: [@samilososami](https://github.com/samilososami)
 
-## Licencia
+## License
 
 MIT

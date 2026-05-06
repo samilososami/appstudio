@@ -1,9 +1,8 @@
 'use client';
 
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Zap, Trash2 } from 'lucide-react';
-import { Message } from '@/app/types';
+import { MessageSquare, Trash2 } from 'lucide-react';
+import type { Message } from '@/app/types';
 import { ChatMessageList } from './ChatMessageList';
 import { ChatInput } from './ChatInput';
 import { useToast } from '@/app/providers/ToastProvider';
@@ -17,68 +16,52 @@ interface ChatPanelProps {
   onClearHistory?: () => void;
 }
 
-export function ChatPanel({ messages, isStreaming, progressStep, onSendMessage, onStopStreaming, onClearHistory }: ChatPanelProps) {
+export function ChatPanel({
+  messages,
+  isStreaming,
+  progressStep,
+  onSendMessage,
+  onStopStreaming,
+  onClearHistory,
+}: ChatPanelProps) {
   const { showToast } = useToast();
 
   const handleClear = () => {
     onClearHistory?.();
-    showToast({ type: 'info', message: 'Historial de conversación borrado' });
+    showToast({ type: 'info', message: 'Historial de conversacion borrado' });
   };
+
   return (
-    <div className="flex flex-col h-full bg-bone-50">
-      <div className="px-6 py-5 border-b border-bone-200 bg-bone-50">
+    <div className="flex h-full flex-col bg-bone-50">
+      <div className="border-b border-bone-200 bg-bone-50 px-6 py-5">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-water-500 flex items-center justify-center shadow-lg shadow-water-500/25">
-            <MessageSquare className="w-4 h-4 text-white" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-water-500 shadow-lg shadow-water-500/25">
+            <MessageSquare className="h-4 w-4 text-white" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Chat</h2>
-            <p className="text-xs text-gray-500">
-              Habla con SamiBuilder para crear tu app
-            </p>
+            <p className="truncate text-xs text-gray-500">SamiBuilder genera apps Expo con preview directa</p>
           </div>
-          {messages.length > 0 && onClearHistory && (
-            <button
-              onClick={handleClear}
-              className="ml-auto p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-500 transition-all border border-transparent hover:border-red-200"
-              title="Limpiar historial (Ctrl+K para enfocar input)"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
-          {(isStreaming || progressStep) && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-water-50 border border-water-200 max-w-[200px]"
-            >
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+
+          <div className="ml-auto flex items-center gap-2">
+            {messages.length > 0 && onClearHistory && (
+              <button
+                onClick={handleClear}
+                className="rounded-xl border border-transparent p-2 text-gray-400 transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-500"
+                title="Limpiar historial"
               >
-                <Zap className="w-3 h-3 text-water-600" />
-              </motion.div>
-              <AnimatePresence mode="wait">
-                <motion.span
-                  key={progressStep || 'generating'}
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -5 }}
-                  transition={{ duration: 0.3 }}
-                  className="text-xs font-medium text-water-700 truncate"
-                >
-                  {progressStep || 'Generando...'}
-                </motion.span>
-              </AnimatePresence>
-            </motion.div>
-          )}
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
-      <ChatMessageList messages={messages} isStreaming={isStreaming} />
+
+      <ChatMessageList messages={messages} isStreaming={isStreaming} progressStep={progressStep} onExampleSelect={onSendMessage} />
       <ChatInput
         onSubmit={isStreaming ? onStopStreaming : onSendMessage}
         isStreaming={isStreaming}
-        placeholder={isStreaming ? 'Generando...' : 'Escribe tu prompt...'}
+        placeholder={isStreaming ? 'Generando...' : 'Pide una app Android o Wear OS...'}
       />
     </div>
   );

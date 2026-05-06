@@ -17,9 +17,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const stored = localStorage.getItem('samistudio-theme');
     if (stored === 'dark' || stored === 'light') {
-      setTheme(stored);
+      window.setTimeout(() => setTheme(stored), 0);
     } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setTheme('dark');
+      window.setTimeout(() => setTheme('dark'), 0);
     }
   }, []);
 
