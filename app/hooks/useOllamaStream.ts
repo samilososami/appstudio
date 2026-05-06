@@ -100,7 +100,7 @@ export function useOllamaStream() {
             if (content) {
               if (!sawContent) {
                 sawContent = true;
-              report({ type: 'first-token', label: 'Dando forma a la app...' });
+                report({ type: 'first-token', label: 'Dando forma a la app...' });
               }
 
               const previousFenceCount = codeFenceCount;

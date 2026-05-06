@@ -10,10 +10,11 @@ interface ChatMessageListProps {
   messages: Message[];
   isStreaming: boolean;
   progressStep?: string | null;
+  thinkingLabel?: string | null;
   onExampleSelect?: (prompt: string) => void;
 }
 
-export function ChatMessageList({ messages, isStreaming, progressStep, onExampleSelect }: ChatMessageListProps) {
+export function ChatMessageList({ messages, isStreaming, progressStep, thinkingLabel, onExampleSelect }: ChatMessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -76,7 +77,7 @@ export function ChatMessageList({ messages, isStreaming, progressStep, onExample
           key={message.id || `${index}-${message.timestamp || index}`}
           message={message}
           isStreaming={isStreaming && index === messages.length - 1 && message.role === 'assistant'}
-          thinkingLabel={index === messages.length - 1 ? progressStep : null}
+          thinkingLabel={index === messages.length - 1 ? thinkingLabel || progressStep : null}
         />
       ))}
       <div ref={bottomRef} className="h-4" />

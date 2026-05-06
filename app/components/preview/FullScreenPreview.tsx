@@ -51,18 +51,15 @@ export function FullScreenPreview({ previewId }: { previewId: string }) {
     return <main className="min-h-screen bg-zinc-950" />;
   }
 
-  const isRoundWatch = preview.deviceType === 'watch' && preview.watchShape === 'round';
-  const isSquareWatch = preview.deviceType === 'watch' && preview.watchShape === 'square';
+  const isWatch = preview.deviceType === 'watch';
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-zinc-950">
       <div
         className={`overflow-hidden bg-white ${
-          isRoundWatch
+          isWatch
             ? 'h-[min(82vw,82vh)] w-[min(82vw,82vh)] rounded-full'
-            : isSquareWatch
-              ? 'h-[min(82vw,82vh)] w-[min(82vw,82vh)] rounded-[48px]'
-              : 'h-screen w-screen'
+            : 'h-screen w-screen'
         }`}
       >
         <SnackRuntimePreview
@@ -70,7 +67,7 @@ export function FullScreenPreview({ previewId }: { previewId: string }) {
           compact={preview.deviceType === 'watch'}
           viewport={
             preview.deviceType === 'watch'
-              ? { width: preview.watchShape === 'round' ? 220 : 240, height: preview.watchShape === 'round' ? 220 : 240 }
+              ? { width: 220, height: 220 }
               : { width: 390, height: 834 }
           }
         />

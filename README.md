@@ -8,7 +8,7 @@ AI app builder for Android and Wear OS. Describe an idea in Spanish, and AppStud
 
 AppStudio is a web-based app generator inspired by tools like Rork, Bloom, Lovable and Codex-style agent UX. It uses Ollama Cloud chat models to produce a single-file Expo app, then runs that app through Expo Snack's runtime without showing the Snack editor.
 
-The interface is built around a chat and a live device preview. The AI can target a phone, circular watch, or square watch, and the UI switches the mockup automatically.
+The interface is built around a chat and a live device preview. The AI can target a phone or a circular Wear OS watch, and the UI switches the mockup automatically.
 
 ## Features
 
@@ -17,9 +17,9 @@ The interface is built around a chat and a live device preview. The AI can targe
 - Direct interactive preview using `snack-sdk` and `webPreviewURL`
 - Full-screen preview route that opens only the generated app
 - Phone and Wear OS mockups with logical device viewports
-- Circular and square watch preview support
+- Circular Wear OS preview support
 - Streaming Ollama responses with in-chat thinking animation
-- Elapsed work time while the AI is generating, plus final "Trabajo durante X"
+- Elapsed work time while the AI is generating, plus final "Trabajo durante X" status
 - Response modes: fast, balanced, and reasoning-focused
 - Markdown renderer with code blocks, lists, headings, links and inline code
 - Local settings for Ollama API key and model selection
@@ -32,8 +32,6 @@ AppStudio does not embed the full Snack editor. It creates or runs a Snack sessi
 
 - Phone viewport: `390x834`
 - Circular watch viewport: `220x220`
-- Square watch viewport: `240x240`
-
 The mockup scales the logical viewport into the visible screen shape, so generated apps can be written against realistic dimensions while still fitting inside the visual device frame.
 
 ## AI Contract
@@ -41,7 +39,7 @@ The mockup scales the logical viewport into the visible screen shape, so generat
 When the user asks for an app, SamiBuilder returns:
 
 ~~~text
-<!-- samistudio:target=phone|watch;shape=round|square;title=Short name -->
+<!-- samistudio:target=phone|watch;shape=round;title=Short name -->
 
 ```jsx
 // App.js

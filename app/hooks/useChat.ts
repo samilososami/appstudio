@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import type { DeviceSpec, Message, ResponseMode } from '@/app/types';
 import { SYSTEM_PROMPT } from '@/app/lib/constants';
 import { useOllamaStream } from './useOllamaStream';
+import type { StreamProgressEvent } from './useOllamaStream';
 
 const CHAT_HISTORY_KEY = 'samistudio-chat-history';
 
@@ -48,11 +49,10 @@ function isAppRequest(text: string) {
 function inferDeviceFromText(text: string): DeviceSpec {
   const normalized = normalizeText(text);
   const wantsWatch = /\b(reloj|watch|wear|wear os|galaxy watch|smartwatch)\b/.test(normalized);
-  const wantsSquare = /\b(cuadrad|square|rectangular)\b/.test(normalized);
 
   return {
     deviceType: wantsWatch ? 'watch' : 'phone',
-    watchShape: wantsWatch && wantsSquare ? 'square' : 'round',
+    watchShape: 'round',
   };
 }
 
@@ -71,12 +71,7 @@ function shortAppDescription(text: string) {
 }
 
 function makeIntro(text: string, spec: DeviceSpec) {
-  const target =
-    spec.deviceType === 'watch'
-      ? spec.watchShape === 'square'
-        ? 'optimizada para un reloj Wear OS cuadrado'
-        : 'optimizada para una pantalla circular de reloj Wear OS'
-      : 'para telefono Android';
+  const target = spec.deviceType === 'watch' ? 'optimizada para una pantalla circular de reloj Wear OS' : 'para telefono Android';
 
   return `Genial, me pongo a crear ${shortAppDescription(text)}, ${target}. Primero preparo la estructura y luego genero el App.js completo para la preview.`;
 }
@@ -96,13 +91,92 @@ function extractMetadata(text: string): Partial<DeviceSpec> {
   }, {});
 
   const target = metadata.target === 'watch' ? 'watch' : metadata.target === 'phone' ? 'phone' : undefined;
-  const shape = metadata.shape === 'square' ? 'square' : metadata.shape === 'round' ? 'round' : undefined;
+  const shape = metadata.shape ? 'round' : undefined;
 
   return {
     deviceType: target,
     watchShape: shape,
     title: metadata.title,
   };
+}
+
+function getThinkingLabel(text: string, eventType: StreamProgressEvent['type'] = 'request') {
+  const normalized = normalizeText(text);
+  const isCalculator = /\b(calculadora|calculator|calcular|operaciones)\b/.test(normalized);
+  const isTimer = /\b(timer|temporizador|cuenta atras|cuenta regresiva)\b/.test(normalized);
+  const isStopwatch = /\b(cronometro|stopwatch)\b/.test(normalized);
+  const isTasks = /\b(tareas|todo|lista|notas|checklist)\b/.test(normalized);
+  const isWatch = /\b(reloj|watch|wear|wear os)\b/.test(normalized);
+
+  if (isCalculator) {
+    const labels: Record<StreamProgressEvent['type'], string> = {
+      request: 'Analizando operaciones y pantalla',
+      thinking: 'Separando display, teclado y operadores',
+      'first-token': 'Dise\u00f1ando patr\u00f3n de n\u00fameros',
+      'code-start': 'Encajando botones sin desbordes',
+      'code-complete': 'Verificando suma, resta y borrado',
+      done: 'Montando preview de calculadora',
+    };
+    return labels[eventType];
+  }
+
+  if (isTimer) {
+    const labels: Record<StreamProgressEvent['type'], string> = {
+      request: 'Definiendo cuenta atr\u00e1s',
+      thinking: 'Conservando modo temporizador',
+      'first-token': 'Dise\u00f1ando controles de tiempo',
+      'code-start': 'Ajustando inicio, pausa y reset',
+      'code-complete': 'Comprobando que no sea cron\u00f3metro',
+      done: 'Montando preview del timer',
+    };
+    return labels[eventType];
+  }
+
+  if (isStopwatch) {
+    const labels: Record<StreamProgressEvent['type'], string> = {
+      request: 'Preparando conteo ascendente',
+      thinking: 'Conservando modo cron\u00f3metro',
+      'first-token': 'Dise\u00f1ando lectura de tiempo',
+      'code-start': 'Ajustando inicio, pausa y vuelta',
+      'code-complete': 'Verificando conteo hacia arriba',
+      done: 'Montando preview del cron\u00f3metro',
+    };
+    return labels[eventType];
+  }
+
+  if (isTasks) {
+    const labels: Record<StreamProgressEvent['type'], string> = {
+      request: 'Ordenando estructura de tareas',
+      thinking: 'Dise\u00f1ando estados de lista',
+      'first-token': 'Preparando entradas y checks',
+      'code-start': 'Encajando filas y acciones',
+      'code-complete': 'Revisando alta y completado',
+      done: 'Montando preview de tareas',
+    };
+    return labels[eventType];
+  }
+
+  if (isWatch) {
+    const labels: Record<StreamProgressEvent['type'], string> = {
+      request: 'Leyendo objetivo Wear OS',
+      thinking: 'Adaptando a pantalla circular',
+      'first-token': 'Dise\u00f1ando controles compactos',
+      'code-start': 'Protegiendo el borde circular',
+      'code-complete': 'Verificando legibilidad en reloj',
+      done: 'Montando preview circular',
+    };
+    return labels[eventType];
+  }
+
+  const labels: Record<StreamProgressEvent['type'], string> = {
+    request: 'Analizando la idea de app',
+    thinking: 'Dise\u00f1ando flujo principal',
+    'first-token': 'Preparando interfaz responsive',
+    'code-start': 'Construyendo App.js',
+    'code-complete': 'Verificando estructura y estilos',
+    done: 'Montando preview interactiva',
+  };
+  return labels[eventType];
 }
 
 function extractCodeBlock(text: string): { code: string | null; summary: string; codeStarted: boolean } {
@@ -163,10 +237,12 @@ export function useChat(
   const [messages, setMessages] = useState<Message[]>(() => [createSystemMessage()]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const { send, stop, isStreaming, progressStep } = useOllamaStream();
+  const [thinkingLabel, setThinkingLabel] = useState<string | null>(null);
   const assistantContentRef = useRef('');
 
   const clearHistory = useCallback(() => {
     setMessages([createSystemMessage()]);
+    setThinkingLabel(null);
     if (typeof window !== 'undefined') {
       localStorage.removeItem(CHAT_HISTORY_KEY);
     }
@@ -215,7 +291,7 @@ export function useChat(
               `Forma de reloj inicial: ${guessedDevice.watchShape}.`,
               'Si el prompt contradice esa inferencia, corrige el comentario samistudio.',
               'Genera una sola app completa y usable.',
-              'La preview usa siluetas exactas: phone 390x834 con esquinas redondeadas y safe area; watch round 220x220 circular; watch square 240x240 con esquinas redondeadas.',
+              'La preview usa siluetas exactas: phone 390x834 con esquinas redondeadas y safe area; watch round 220x220 circular. No uses layout rectangular para watch.',
               'Evita widths fijos grandes; usa flex, aspectRatio, gap y botones que entren completos en pantalla.',
               'Si el usuario pide adaptar a telefono/reloj o cambiar de dispositivo, conserva la funcionalidad, textos, unidades, estado y comportamiento del codigo anterior salvo que pida cambios concretos.',
               'Temporizador/timer significa cuenta atras configurable. Cronometro significa conteo hacia arriba. No los intercambies.',
@@ -231,6 +307,7 @@ export function useChat(
 
       setMessages((prev) => [...prev, userMessage, assistantMessage]);
       assistantContentRef.current = '';
+      setThinkingLabel(getThinkingLabel(userText, 'request'));
 
       await send(
         { model, messages: apiMessages, apiKey, responseMode },
@@ -295,6 +372,7 @@ export function useChat(
                 workingStartedAt: undefined,
                 workedMs: getElapsedMs(workingStartedAt),
               });
+              setThinkingLabel(null);
             } catch (error) {
               const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
               patchAssistant(assistantId, (message) => ({
@@ -303,6 +381,7 @@ export function useChat(
                 workingStartedAt: undefined,
                 workedMs: getElapsedMs(workingStartedAt),
               }));
+              setThinkingLabel(null);
             }
           } else {
             patchAssistant(assistantId, {
@@ -311,6 +390,7 @@ export function useChat(
               workingStartedAt: undefined,
               workedMs: getElapsedMs(workingStartedAt),
             });
+            setThinkingLabel(null);
           }
         },
         (err) => {
@@ -320,6 +400,10 @@ export function useChat(
             workingStartedAt: undefined,
             workedMs: getElapsedMs(workingStartedAt),
           });
+          setThinkingLabel(null);
+        },
+        (event) => {
+          setThinkingLabel(getThinkingLabel(userText, event.type));
         }
       );
     },
@@ -328,6 +412,7 @@ export function useChat(
 
   const stopStreaming = useCallback(() => {
     stop();
+    setThinkingLabel(null);
   }, [stop]);
 
   const chatMessages = messages.filter((message) => message.role !== 'system');
@@ -356,6 +441,7 @@ export function useChat(
     sendMessage,
     stopStreaming,
     progressStep,
+    thinkingLabel,
     clearHistory,
   };
 }

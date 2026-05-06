@@ -25,7 +25,7 @@ export default function Home() {
     setWatchShape(device.watchShape || 'round');
   };
 
-  const { messages, isStreaming, sendMessage, stopStreaming, progressStep, clearHistory } = useChat(
+  const { messages, isStreaming, sendMessage, stopStreaming, progressStep, thinkingLabel, clearHistory } = useChat(
     settings.model || 'kimi-k2.6:cloud',
     settings.apiKey,
     settings.responseMode,
@@ -46,6 +46,7 @@ export default function Home() {
             messages={messages}
             isStreaming={isStreaming}
             progressStep={progressStep}
+            thinkingLabel={thinkingLabel}
             onSendMessage={sendMessage}
             onStopStreaming={stopStreaming}
             onClearHistory={clearHistory}
@@ -111,6 +112,7 @@ export default function Home() {
                 messages={messages}
                 isStreaming={isStreaming}
                 progressStep={progressStep}
+                thinkingLabel={thinkingLabel}
                 onSendMessage={sendMessage}
                 onStopStreaming={stopStreaming}
                 onClearHistory={clearHistory}

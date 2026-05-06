@@ -11,6 +11,7 @@ interface ChatPanelProps {
   messages: Message[];
   isStreaming: boolean;
   progressStep?: string | null;
+  thinkingLabel?: string | null;
   onSendMessage: (text: string) => void;
   onStopStreaming: () => void;
   onClearHistory?: () => void;
@@ -20,6 +21,7 @@ export function ChatPanel({
   messages,
   isStreaming,
   progressStep,
+  thinkingLabel,
   onSendMessage,
   onStopStreaming,
   onClearHistory,
@@ -57,7 +59,13 @@ export function ChatPanel({
         </div>
       </div>
 
-      <ChatMessageList messages={messages} isStreaming={isStreaming} progressStep={progressStep} onExampleSelect={onSendMessage} />
+      <ChatMessageList
+        messages={messages}
+        isStreaming={isStreaming}
+        progressStep={progressStep}
+        thinkingLabel={thinkingLabel}
+        onExampleSelect={onSendMessage}
+      />
       <ChatInput
         onSubmit={isStreaming ? onStopStreaming : onSendMessage}
         isStreaming={isStreaming}

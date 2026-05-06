@@ -68,12 +68,7 @@ export function PreviewPanel({
   }, [deviceType, generatedCode, previewId, runtimeUrl, snackId, snackUrl, watchShape]);
 
   const fullScreenUrl = previewId ? `/preview/${previewId}` : null;
-  const targetLabel =
-    deviceType === 'watch'
-      ? watchShape === 'square'
-        ? 'Reloj cuadrado'
-        : 'Reloj circular'
-      : 'Telefono';
+  const targetLabel = deviceType === 'watch' ? 'Reloj circular' : 'Telefono';
   const TargetIcon = deviceType === 'watch' ? Watch : Smartphone;
   const magicActive = Boolean(isGenerating || isCreating);
 
@@ -298,21 +293,21 @@ export function PreviewPanel({
                   </motion.div>
                 ) : (
                   <motion.div
-                    key={`watch-${watchShape}`}
+                    key="watch-round"
                     initial={{ opacity: 0, scale: 0.94, y: 18 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.94, y: -18 }}
                     transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                   >
-                    <WatchMockup shape={watchShape}>
+                    <WatchMockup>
                       {screenContent(
                         generatedCode ? (
                           <SnackRuntimePreview
                             code={generatedCode}
                             compact
                             fit="cover"
-                            viewport={{ width: watchShape === 'round' ? 220 : 240, height: watchShape === 'round' ? 220 : 240 }}
-                            className={watchShape === 'round' ? 'rounded-full' : 'rounded-[38px]'}
+                            viewport={{ width: 220, height: 220 }}
+                            className="rounded-full"
                           />
                         ) : isCreating || isGenerating ? (
                           loadingState

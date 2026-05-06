@@ -26,7 +26,8 @@ export function SnackRuntimePreview({ code, className, compact, viewport, fit = 
   const [status, setStatus] = React.useState<'booting' | 'loading' | 'ready' | 'error'>('booting');
   const [error, setError] = React.useState<string | null>(null);
   const [scale, setScale] = React.useState(1);
-  const logicalViewport = viewport || { width: compact ? 220 : 390, height: compact ? 220 : 844 };
+  const logicalViewport = viewport || { width: compact ? 220 : 390, height: compact ? 220 : 834 };
+  const fittedScale = scale * (fit === 'cover' ? 1.025 : 1);
 
   React.useEffect(() => {
     const element = containerRef.current;
@@ -107,7 +108,7 @@ export function SnackRuntimePreview({ code, className, compact, viewport, fit = 
   }, [code]);
 
   return (
-    <div ref={containerRef} className={`relative h-full w-full overflow-hidden bg-white ${className || ''}`}>
+    <div ref={containerRef} className={`relative h-full w-full overflow-hidden bg-black ${className || ''}`}>
       {(status === 'booting' || status === 'loading') && (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-bone-50 text-gray-500">
           <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}>
@@ -138,7 +139,7 @@ export function SnackRuntimePreview({ code, className, compact, viewport, fit = 
         style={{
           width: logicalViewport.width,
           height: logicalViewport.height,
-          transform: `translate(-50%, -50%) scale(${scale})`,
+          transform: `translate(-50%, -50%) scale(${fittedScale})`,
           transformOrigin: 'center',
         }}
         allow="accelerometer; camera; encrypted-media; gyroscope; microphone"

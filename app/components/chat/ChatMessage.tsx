@@ -46,20 +46,27 @@ function ThinkingPulse({ label, elapsedMs }: { label?: string | null; elapsedMs?
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: [0.45, 0.92, 0.45] }}
-      transition={{ duration: 1.7, repeat: Infinity, ease: 'easeInOut' }}
-      className="mt-3 overflow-hidden rounded-xl border border-bone-200 bg-white/65 px-3 py-2"
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: 'easeOut' }}
+      className="relative mt-3 overflow-hidden rounded-xl border border-bone-200 bg-white/75 px-3 py-2 shadow-sm"
     >
-      <div className="mb-1.5 flex items-center justify-between gap-3">
-        <span className="truncate text-xs font-medium text-gray-500">{label || 'Pensando...'}</span>
-        <span className="shrink-0 text-[10px] font-semibold text-water-700">Trabajando {formatDuration(elapsedMs)}</span>
-      </div>
-      <div className="relative h-1 overflow-hidden rounded-full bg-bone-200">
-        <motion.div
-          className="absolute inset-y-0 w-1/2 rounded-full bg-water-500/70"
-          animate={{ x: ['-80%', '220%'] }}
-          transition={{ duration: 1.35, repeat: Infinity, ease: 'easeInOut' }}
-        />
+      <motion.div
+        className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/2 bg-gradient-to-r from-transparent via-water-200/70 to-transparent blur-sm"
+        animate={{ x: ['0%', '320%'] }}
+        transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <div className="relative flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <motion.span
+            className="h-1.5 w-1.5 shrink-0 rounded-full bg-water-500"
+            animate={{ opacity: [0.35, 1, 0.35], scale: [0.9, 1.12, 0.9] }}
+            transition={{ duration: 1.25, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <span className="truncate text-xs font-medium text-gray-600">{label || 'Pensando...'}</span>
+        </div>
+        <span className="shrink-0 text-[10px] font-semibold text-water-700">
+          Trabajando {formatDuration(elapsedMs)}
+        </span>
       </div>
     </motion.div>
   );

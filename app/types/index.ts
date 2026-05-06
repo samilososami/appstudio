@@ -11,7 +11,7 @@ export interface Message {
 }
 
 export type DeviceType = 'phone' | 'watch';
-export type WatchShape = 'round' | 'square';
+export type WatchShape = 'round';
 export type ResponseMode = 'fast' | 'balanced' | 'deep';
 
 export interface DeviceSpec {
