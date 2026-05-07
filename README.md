@@ -18,6 +18,7 @@ The interface is built around a chat and a live device preview. The AI can targe
 - Full-screen preview route that opens only the generated app
 - Phone and Wear OS mockups with logical device viewports
 - Circular Wear OS preview support
+- Strict circular-watch layout rules for compact apps such as calculators
 - Streaming Ollama responses with in-chat thinking animation
 - Elapsed work time while the AI is generating, plus final "Trabajo durante X" status
 - Response modes: fast, balanced, and reasoning-focused

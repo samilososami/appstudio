@@ -7,6 +7,7 @@ import { useOllamaStream } from './useOllamaStream';
 import type { StreamProgressEvent } from './useOllamaStream';
 
 const CHAT_HISTORY_KEY = 'samistudio-chat-history';
+type AppKind = 'calculator' | 'timer' | 'stopwatch' | 'tasks' | 'generic';
 
 function createSystemMessage(): Message {
   return { id: 'system', role: 'system', content: SYSTEM_PROMPT };
@@ -30,10 +31,27 @@ function normalizeText(text: string) {
     .toLowerCase();
 }
 
+function hasExplicitWatchTarget(text: string) {
+  return /\b(reloj|watch|wear|wear os|galaxy watch|smartwatch)\b/.test(normalizeText(text));
+}
+
+function hasExplicitPhoneTarget(text: string) {
+  return /\b(telefono|movil|mobile|android|celular|phone)\b/.test(normalizeText(text));
+}
+
+function detectAppKind(text: string): AppKind {
+  const normalized = normalizeText(text);
+  if (/\b(calculadora|calculator|calcular|operaciones)\b/.test(normalized)) return 'calculator';
+  if (/\b(timer|temporizador|cuenta atras|cuenta regresiva)\b/.test(normalized)) return 'timer';
+  if (/\b(cronometro|stopwatch)\b/.test(normalized)) return 'stopwatch';
+  if (/\b(tareas|todo|lista|notas|checklist)\b/.test(normalized)) return 'tasks';
+  return 'generic';
+}
+
 function isAppRequest(text: string) {
   const normalized = normalizeText(text);
   const action =
-    /\b(crea(?:me)?|crear|haz(?:me)?|hacer|genera(?:me)?|generar|construye(?:me)?|desarrolla(?:me)?|disena(?:me)?|monta(?:me)?|prepara(?:me)?|adapta(?:lo|la|me)?|convierte(?:lo|la)?|pasa(?:lo|la|me)?|pon(?:lo|la)?)\b/.test(
+    /\b(crea(?:me|lo|la)?|crear|haz(?:me|lo|la)?|hacer|genera(?:me|lo|la)?|generar|construye(?:me|lo|la)?|desarrolla(?:me|lo|la)?|disena(?:me|lo|la)?|monta(?:me|lo|la)?|prepara(?:me|lo|la)?|adapta(?:lo|la|me)?|convierte(?:lo|la)?|pasa(?:lo|la|me)?|pon(?:lo|la)?)\b/.test(
       normalized
     );
   const product =
@@ -47,11 +65,8 @@ function isAppRequest(text: string) {
 }
 
 function inferDeviceFromText(text: string): DeviceSpec {
-  const normalized = normalizeText(text);
-  const wantsWatch = /\b(reloj|watch|wear|wear os|galaxy watch|smartwatch)\b/.test(normalized);
-
   return {
-    deviceType: wantsWatch ? 'watch' : 'phone',
+    deviceType: hasExplicitWatchTarget(text) ? 'watch' : 'phone',
     watchShape: 'round',
   };
 }
@@ -100,15 +115,85 @@ function extractMetadata(text: string): Partial<DeviceSpec> {
   };
 }
 
+function resolveDevice(metadata: Partial<DeviceSpec>, fallback: DeviceSpec, userText: string): DeviceSpec {
+  const explicitWatch = hasExplicitWatchTarget(userText);
+  const explicitPhone = hasExplicitPhoneTarget(userText);
+  const deviceType = explicitWatch ? 'watch' : explicitPhone ? 'phone' : metadata.deviceType || fallback.deviceType;
+
+  return {
+    deviceType,
+    watchShape: 'round',
+    title: metadata.title,
+  };
+}
+
+function buildTargetInstruction(userText: string, guessedDevice: DeviceSpec) {
+  const appKind = detectAppKind(userText);
+  const lines = [
+    `Dispositivo inicial inferido por la interfaz: ${guessedDevice.deviceType}.`,
+    'Forma de reloj inicial: round.',
+    'Si el usuario menciona reloj, Wear OS o watch, target=watch es obligatorio aunque tu primera intuicion sea phone.',
+    'Si el usuario menciona telefono, movil o Android, target=phone es obligatorio salvo que tambien pida reloj.',
+    'Genera una sola app completa y usable.',
+    'La preview usa siluetas exactas: phone 390x834 con esquinas redondeadas y safe area; watch round 220x220 recortado por un circulo real.',
+    'Evita widths fijos grandes; usa flex, aspectRatio, gap y botones que entren completos en pantalla.',
+    'Si el usuario pide adaptar a telefono/reloj o cambiar de dispositivo, conserva la funcionalidad, textos, unidades, estado y comportamiento del codigo anterior salvo que pida cambios concretos.',
+    'Temporizador/timer significa cuenta atras configurable. Cronometro significa conteo hacia arriba. No los intercambies.',
+  ];
+
+  if (guessedDevice.deviceType === 'watch') {
+    lines.push(
+      'CONTRATO ESTRICTO PARA WATCH:',
+      '- El App.js debe estar disenado para 220x220 circular, no para un rectangulo comprimido.',
+      '- No coloques controles utiles en las esquinas. Las esquinas se recortan por el circulo.',
+      '- Mantén el contenido principal dentro de un diametro seguro aproximado de 180 px.',
+      '- Usa botones circulares, labels cortos y posiciones centradas/radiales. No uses tab bars, headers largos ni listas altas.',
+      '- Si usas absolute positioning, calcula left/top para que cada boton completo quede dentro del circulo visible.',
+      '- Antes de cerrar el codigo, revisa mentalmente: ningun boton se corta, ningun texto queda fuera, la pantalla no parece de telefono.'
+    );
+  }
+
+  if (guessedDevice.deviceType === 'watch' && appKind === 'calculator') {
+    lines.push(
+      'CONTRATO ESTRICTO PARA CALCULADORA EN RELOJ:',
+      '- Prohibido usar una cuadricula rectangular de telefono de 4 columnas x 5 filas.',
+      '- Usa como maximo 3 columnas numericas en el centro y mueve operadores a una corona lateral/radial.',
+      '- Botones visuales recomendados: 26-32 px con hitSlop; display maximo 140 px de ancho.',
+      '- Evita width: 80, width: 170, fontSize: 64, row space-between y zeroButton ancho.',
+      '- Los botones 7/8/9, 4/5/6, 1/2/3 y 0 deben quedar dentro del circulo; C, operadores y = pueden ir en anillo compacto.',
+      '- La calculadora debe seguir funcionando con suma, resta, multiplicacion, division, decimal, borrar y resultado.'
+    );
+  }
+
+  if (guessedDevice.deviceType === 'phone' && appKind === 'calculator') {
+    lines.push(
+      'CONTRATO PARA CALCULADORA EN TELEFONO:',
+      '- Usa botones con flex: 1 y aspectRatio: 1.',
+      '- No uses width fijo como 80 o 170; el teclado debe ajustarse al ancho disponible.'
+    );
+  }
+
+  return lines.join('\n');
+}
+
 function getThinkingLabel(text: string, eventType: StreamProgressEvent['type'] = 'request') {
   const normalized = normalizeText(text);
-  const isCalculator = /\b(calculadora|calculator|calcular|operaciones)\b/.test(normalized);
-  const isTimer = /\b(timer|temporizador|cuenta atras|cuenta regresiva)\b/.test(normalized);
-  const isStopwatch = /\b(cronometro|stopwatch)\b/.test(normalized);
-  const isTasks = /\b(tareas|todo|lista|notas|checklist)\b/.test(normalized);
+  const appKind = detectAppKind(text);
   const isWatch = /\b(reloj|watch|wear|wear os)\b/.test(normalized);
 
-  if (isCalculator) {
+  if (appKind === 'calculator' && isWatch) {
+    const labels: Record<StreamProgressEvent['type'], string> = {
+      request: 'Midiendo pantalla circular',
+      thinking: 'Repartiendo botones en corona',
+      'first-token': 'Dise\u00f1ando teclado circular',
+      'code-start': 'Protegiendo cada boton del recorte',
+      'code-complete': 'Comprobando operaciones compactas',
+      done: 'Montando calculadora de reloj',
+    };
+    return labels[eventType];
+  }
+
+  if (appKind === 'calculator') {
     const labels: Record<StreamProgressEvent['type'], string> = {
       request: 'Analizando operaciones y pantalla',
       thinking: 'Separando display, teclado y operadores',
@@ -120,7 +205,7 @@ function getThinkingLabel(text: string, eventType: StreamProgressEvent['type'] =
     return labels[eventType];
   }
 
-  if (isTimer) {
+  if (appKind === 'timer') {
     const labels: Record<StreamProgressEvent['type'], string> = {
       request: 'Definiendo cuenta atr\u00e1s',
       thinking: 'Conservando modo temporizador',
@@ -132,7 +217,7 @@ function getThinkingLabel(text: string, eventType: StreamProgressEvent['type'] =
     return labels[eventType];
   }
 
-  if (isStopwatch) {
+  if (appKind === 'stopwatch') {
     const labels: Record<StreamProgressEvent['type'], string> = {
       request: 'Preparando conteo ascendente',
       thinking: 'Conservando modo cron\u00f3metro',
@@ -144,7 +229,7 @@ function getThinkingLabel(text: string, eventType: StreamProgressEvent['type'] =
     return labels[eventType];
   }
 
-  if (isTasks) {
+  if (appKind === 'tasks') {
     const labels: Record<StreamProgressEvent['type'], string> = {
       request: 'Ordenando estructura de tareas',
       thinking: 'Dise\u00f1ando estados de lista',
@@ -203,6 +288,214 @@ function isReactNativeAppCode(code: string) {
     && /(export\s+default|StyleSheet\.create|return\s*\()/.test(code);
 }
 
+function shouldUseCircularWatchCalculatorBlueprint(userText: string, device: DeviceSpec) {
+  const normalized = normalizeText(userText);
+  const genericCalculator = detectAppKind(userText) === 'calculator'
+    && !/\b(imc|bmi|propina|tip|hipoteca|prestamo|divisa|moneda|cientifica|scientific)\b/.test(normalized);
+
+  return device.deviceType === 'watch' && genericCalculator;
+}
+
+function getCircularWatchCalculatorCode() {
+  return `import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+
+export default function App() {
+  const [display, setDisplay] = useState('0');
+  const [storedValue, setStoredValue] = useState(null);
+  const [operator, setOperator] = useState(null);
+  const [waiting, setWaiting] = useState(false);
+
+  const formatValue = (value) => {
+    if (!Number.isFinite(value)) return 'Error';
+    const rounded = Math.round(value * 1000000) / 1000000;
+    return String(rounded).slice(0, 9);
+  };
+
+  const calculate = (first, second, op) => {
+    switch (op) {
+      case '+':
+        return first + second;
+      case '-':
+        return first - second;
+      case 'x':
+        return first * second;
+      case '/':
+        return second === 0 ? NaN : first / second;
+      default:
+        return second;
+    }
+  };
+
+  const inputDigit = (digit) => {
+    if (display === 'Error') {
+      setDisplay(String(digit));
+      setWaiting(false);
+      return;
+    }
+    if (waiting) {
+      setDisplay(String(digit));
+      setWaiting(false);
+      return;
+    }
+    setDisplay(display === '0' ? String(digit) : (display + digit).slice(0, 9));
+  };
+
+  const inputDecimal = () => {
+    if (waiting || display === 'Error') {
+      setDisplay('0.');
+      setWaiting(false);
+      return;
+    }
+    if (!display.includes('.')) setDisplay(display + '.');
+  };
+
+  const clear = () => {
+    setDisplay('0');
+    setStoredValue(null);
+    setOperator(null);
+    setWaiting(false);
+  };
+
+  const chooseOperator = (nextOperator) => {
+    const current = parseFloat(display);
+    if (storedValue === null || operator === null) {
+      setStoredValue(current);
+    } else {
+      const result = calculate(storedValue, current, operator);
+      setStoredValue(result);
+      setDisplay(formatValue(result));
+    }
+    setOperator(nextOperator);
+    setWaiting(true);
+  };
+
+  const equals = () => {
+    if (storedValue === null || operator === null) return;
+    const result = calculate(storedValue, parseFloat(display), operator);
+    setDisplay(formatValue(result));
+    setStoredValue(null);
+    setOperator(null);
+    setWaiting(true);
+  };
+
+  const keys = [
+    { label: 'C', x: 34, y: 50, size: 26, tone: 'clear', onPress: clear },
+    { label: '/', x: 160, y: 50, size: 26, tone: 'op', onPress: () => chooseOperator('/') },
+    { label: '7', x: 60, y: 68, size: 30, tone: 'num', onPress: () => inputDigit(7) },
+    { label: '8', x: 95, y: 68, size: 30, tone: 'num', onPress: () => inputDigit(8) },
+    { label: '9', x: 130, y: 68, size: 30, tone: 'num', onPress: () => inputDigit(9) },
+    { label: 'x', x: 24, y: 111, size: 27, tone: 'op', onPress: () => chooseOperator('x') },
+    { label: '4', x: 50, y: 103, size: 31, tone: 'num', onPress: () => inputDigit(4) },
+    { label: '5', x: 95, y: 103, size: 31, tone: 'num', onPress: () => inputDigit(5) },
+    { label: '6', x: 140, y: 103, size: 31, tone: 'num', onPress: () => inputDigit(6) },
+    { label: '-', x: 169, y: 111, size: 27, tone: 'op', onPress: () => chooseOperator('-') },
+    { label: '1', x: 60, y: 138, size: 30, tone: 'num', onPress: () => inputDigit(1) },
+    { label: '2', x: 95, y: 138, size: 30, tone: 'num', onPress: () => inputDigit(2) },
+    { label: '3', x: 130, y: 138, size: 30, tone: 'num', onPress: () => inputDigit(3) },
+    { label: '+', x: 38, y: 168, size: 25, tone: 'op', onPress: () => chooseOperator('+') },
+    { label: '.', x: 70, y: 172, size: 27, tone: 'num', onPress: inputDecimal },
+    { label: '0', x: 100, y: 173, size: 28, tone: 'num', onPress: () => inputDigit(0) },
+    { label: '=', x: 132, y: 172, size: 29, tone: 'equal', onPress: equals },
+  ];
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.face}>
+        <View style={styles.topGlow} />
+        <Text style={styles.display} numberOfLines={1} adjustsFontSizeToFit>
+          {display}
+        </Text>
+        {keys.map((key) => (
+          <TouchableOpacity
+            key={key.label}
+            onPress={key.onPress}
+            activeOpacity={0.78}
+            hitSlop={6}
+            style={[
+              styles.key,
+              styles[key.tone],
+              {
+                left: key.x,
+                top: key.y,
+                width: key.size,
+                height: key.size,
+                borderRadius: key.size / 2,
+              },
+            ]}
+          >
+            <Text style={[styles.keyText, key.tone === 'clear' && styles.clearText]}>{key.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#061017',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  face: {
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    overflow: 'hidden',
+    backgroundColor: '#09141d',
+  },
+  topGlow: {
+    position: 'absolute',
+    left: 35,
+    top: 10,
+    width: 150,
+    height: 58,
+    borderRadius: 30,
+    backgroundColor: 'rgba(30, 144, 255, 0.18)',
+  },
+  display: {
+    position: 'absolute',
+    left: 45,
+    top: 21,
+    width: 130,
+    height: 33,
+    color: '#f8fafc',
+    fontSize: 28,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  key: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  num: {
+    backgroundColor: '#1f2937',
+  },
+  op: {
+    backgroundColor: '#0ea5e9',
+  },
+  equal: {
+    backgroundColor: '#22c55e',
+  },
+  clear: {
+    backgroundColor: '#e5e7eb',
+  },
+  keyText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  clearText: {
+    color: '#111827',
+  },
+});`;
+}
+
 function loadHistory(): Message[] {
   if (typeof window === 'undefined') return [];
   try {
@@ -225,6 +518,18 @@ function saveHistory(messages: Message[]) {
   } catch {
     // ignore
   }
+}
+
+function getAppContextText(userText: string, messages: Message[]) {
+  if (detectAppKind(userText) !== 'generic') return userText;
+
+  const recentContext = messages
+    .filter((message) => message.role !== 'system')
+    .slice(-6)
+    .map((message) => message.content)
+    .join('\n');
+
+  return `${recentContext}\n${userText}`;
 }
 
 export function useChat(
@@ -261,6 +566,7 @@ export function useChat(
   const sendMessage = useCallback(
     async (userText: string) => {
       const appRequest = isAppRequest(userText);
+      const appContextText = getAppContextText(userText, messages);
       const guessedDevice = inferDeviceFromText(userText);
       if (appRequest) onDeviceDetected?.(guessedDevice);
 
@@ -286,16 +592,7 @@ export function useChat(
       const targetInstruction = appRequest
         ? {
             role: 'system' as const,
-            content: [
-              `Dispositivo inicial inferido por la interfaz: ${guessedDevice.deviceType}.`,
-              `Forma de reloj inicial: ${guessedDevice.watchShape}.`,
-              'Si el prompt contradice esa inferencia, corrige el comentario samistudio.',
-              'Genera una sola app completa y usable.',
-              'La preview usa siluetas exactas: phone 390x834 con esquinas redondeadas y safe area; watch round 220x220 circular. No uses layout rectangular para watch.',
-              'Evita widths fijos grandes; usa flex, aspectRatio, gap y botones que entren completos en pantalla.',
-              'Si el usuario pide adaptar a telefono/reloj o cambiar de dispositivo, conserva la funcionalidad, textos, unidades, estado y comportamiento del codigo anterior salvo que pida cambios concretos.',
-              'Temporizador/timer significa cuenta atras configurable. Cronometro significa conteo hacia arriba. No los intercambies.',
-            ].join('\n'),
+            content: buildTargetInstruction(appContextText, guessedDevice),
           }
         : null;
 
@@ -307,18 +604,14 @@ export function useChat(
 
       setMessages((prev) => [...prev, userMessage, assistantMessage]);
       assistantContentRef.current = '';
-      setThinkingLabel(getThinkingLabel(userText, 'request'));
+      setThinkingLabel(getThinkingLabel(appContextText, 'request'));
 
       await send(
         { model, messages: apiMessages, apiKey, responseMode },
         (chunk) => {
           assistantContentRef.current += chunk;
           const metadata = extractMetadata(assistantContentRef.current);
-          const currentDevice: DeviceSpec = {
-            deviceType: metadata.deviceType || guessedDevice.deviceType,
-            watchShape: metadata.watchShape || guessedDevice.watchShape,
-            title: metadata.title,
-          };
+          const currentDevice = resolveDevice(metadata, guessedDevice, userText);
 
           if (metadata.deviceType || metadata.watchShape) {
             onDeviceDetected?.(currentDevice);
@@ -341,18 +634,20 @@ export function useChat(
         },
         async () => {
           const metadata = extractMetadata(assistantContentRef.current);
-          const finalDevice: DeviceSpec = {
-            deviceType: metadata.deviceType || guessedDevice.deviceType,
-            watchShape: metadata.watchShape || guessedDevice.watchShape,
-            title: metadata.title,
-          };
+          const finalDevice = resolveDevice(metadata, guessedDevice, userText);
           const { code, summary } = extractCodeBlock(assistantContentRef.current);
 
           const generatedApp = Boolean(code && (appRequest || isReactNativeAppCode(code)));
 
           if (code && generatedApp) {
+            const usesWatchCalculatorBlueprint = shouldUseCircularWatchCalculatorBlueprint(appContextText, finalDevice);
+            const previewCode = usesWatchCalculatorBlueprint ? getCircularWatchCalculatorCode() : code;
+            const previewNote = usesWatchCalculatorBlueprint
+              ? 'He aplicado una distribucion circular especifica para reloj: botones compactos dentro del circulo, operadores en corona y sin cuadricula rectangular.'
+              : null;
+
             patchAssistant(assistantId, {
-              content: [makeIntro(userText, finalDevice), summary, 'Estoy montando la preview interactiva...']
+              content: [makeIntro(userText, finalDevice), summary, previewNote, 'Estoy montando la preview interactiva...']
                 .filter(Boolean)
                 .join('\n\n'),
               deviceType: finalDevice.deviceType,
@@ -363,9 +658,9 @@ export function useChat(
             onDeviceDetected?.(finalDevice);
 
             try {
-              await onCodeGenerated?.(code, finalDevice);
+              await onCodeGenerated?.(previewCode, finalDevice);
               patchAssistant(assistantId, {
-                content: [makeIntro(userText, finalDevice), summary, 'Listo, ya tienes la preview interactiva en el panel derecho.']
+                content: [makeIntro(userText, finalDevice), summary, previewNote, 'Listo, ya tienes la preview interactiva en el panel derecho.']
                   .filter(Boolean)
                   .join('\n\n'),
                 workflow: undefined,
@@ -403,7 +698,7 @@ export function useChat(
           setThinkingLabel(null);
         },
         (event) => {
-          setThinkingLabel(getThinkingLabel(userText, event.type));
+          setThinkingLabel(getThinkingLabel(appContextText, event.type));
         }
       );
     },
