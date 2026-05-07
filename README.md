@@ -15,6 +15,7 @@ The interface is built around a chat and a live device preview. The AI can targe
 - AI chat for generating React Native and Expo apps
 - Automatic phone/watch target detection with AI-correctable metadata
 - Direct interactive preview using `snack-sdk` and `webPreviewURL`
+- App.js preflight validation with automatic repair before the preview opens
 - Full-screen preview route that opens only the generated app
 - Phone and Wear OS mockups with logical device viewports
 - Circular Wear OS preview support

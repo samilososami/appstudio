@@ -35,5 +35,10 @@ export function useSnack() {
     }
   }, []);
 
-  return { snackData, isCreating, error, createSnack };
+  const clearSnack = useCallback(() => {
+    setSnackData(null);
+    setError(null);
+  }, []);
+
+  return { snackData, isCreating, error, createSnack, clearSnack };
 }

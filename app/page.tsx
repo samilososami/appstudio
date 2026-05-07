@@ -14,7 +14,7 @@ import type { DeviceSpec, DeviceType, WatchShape } from './types';
 
 export default function Home() {
   const { settings } = useSettings();
-  const { snackData, isCreating, error, createSnack } = useSnack();
+  const { snackData, isCreating, error, createSnack, clearSnack } = useSnack();
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<'chat' | 'preview'>('chat');
   const [deviceType, setDeviceType] = useState<DeviceType>('phone');
@@ -34,7 +34,12 @@ export default function Home() {
       handleDeviceDetected(device);
       await createSnack(code, device.title || 'SamiStudio App');
     },
-    handleDeviceDetected
+    handleDeviceDetected,
+    (device: DeviceSpec) => {
+      setGeneratedCode(null);
+      clearSnack();
+      handleDeviceDetected(device);
+    }
   );
 
   return (

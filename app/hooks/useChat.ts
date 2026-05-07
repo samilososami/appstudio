@@ -9,6 +9,11 @@ import type { StreamProgressEvent } from './useOllamaStream';
 const CHAT_HISTORY_KEY = 'samistudio-chat-history';
 type AppKind = 'calculator' | 'timer' | 'stopwatch' | 'tasks' | 'generic';
 
+interface CodeValidationResult {
+  ok: boolean;
+  errors: string[];
+}
+
 function createSystemMessage(): Message {
   return { id: 'system', role: 'system', content: SYSTEM_PROMPT };
 }
@@ -283,6 +288,101 @@ function extractCodeBlock(text: string): { code: string | null; summary: string;
   return { code: null, summary: stripStudioMetadata(text), codeStarted: false };
 }
 
+async function validateGeneratedCode(code: string): Promise<CodeValidationResult> {
+  const response = await fetch('/api/validate-code', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data) {
+    return { ok: false, errors: ['No se pudo validar App.js antes de la preview.'] };
+  }
+
+  return {
+    ok: Boolean(data.ok),
+    errors: Array.isArray(data.errors) ? data.errors : [],
+  };
+}
+
+function buildRepairPrompt(userText: string, device: DeviceSpec, code: string, errors: string[]) {
+  const deviceRules = device.deviceType === 'watch'
+    ? [
+        '- Target obligatorio: watch circular 220x220.',
+        '- No uses layouts de telefono ni controles en esquinas.',
+        '- Mantén botones/textos dentro del circulo visible.',
+      ]
+    : [
+        '- Target obligatorio: phone 390x834.',
+        '- Mantén la UI responsive y sin width fijos grandes.',
+      ];
+
+  return [
+    'Repara este App.js de React Native/Expo. Devuelve SOLO un bloque ```jsx con el archivo completo corregido.',
+    'No expliques nada fuera del bloque de codigo.',
+    'Mantén la funcionalidad pedida por el usuario y no cambies el tipo de app.',
+    ...deviceRules,
+    'Errores detectados por el validador:',
+    errors.map((error, index) => `${index + 1}. ${error}`).join('\n'),
+    '',
+    `Prompt/contexto del usuario:\n${userText}`,
+    '',
+    'App.js actual con errores:',
+    '```jsx',
+    code,
+    '```',
+  ].join('\n');
+}
+
+async function repairGeneratedCode(params: {
+  model: string;
+  apiKey: string;
+  userText: string;
+  device: DeviceSpec;
+  code: string;
+  errors: string[];
+}) {
+  const messages: Message[] = [
+    {
+      role: 'system',
+      content: [
+        'Eres un reparador estricto de App.js para React Native y Expo Snack.',
+        'Tu unica tarea es devolver codigo JavaScript/JSX valido.',
+        'No uses TypeScript types, no uses dependencias externas y no dejes JSX dentro de StyleSheet.create.',
+      ].join('\n'),
+    },
+    {
+      role: 'user',
+      content: buildRepairPrompt(params.userText, params.device, params.code, params.errors),
+    },
+  ];
+
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: params.model,
+      messages,
+      stream: false,
+      apiKey: params.apiKey,
+      responseMode: 'fast',
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || 'No se pudo reparar App.js.');
+  }
+
+  const data = await response.json();
+  const content = data?.message?.content || data?.response || '';
+  const { code } = extractCodeBlock(content);
+  if (!code) throw new Error('La reparacion no devolvio un bloque App.js valido.');
+
+  return code;
+}
+
 function isReactNativeAppCode(code: string) {
   return /from ['"]react-native['"]/.test(code)
     && /(export\s+default|StyleSheet\.create|return\s*\()/.test(code);
@@ -537,7 +637,8 @@ export function useChat(
   apiKey: string,
   responseMode: ResponseMode,
   onCodeGenerated?: (code: string, device: DeviceSpec) => Promise<unknown> | unknown,
-  onDeviceDetected?: (device: DeviceSpec) => void
+  onDeviceDetected?: (device: DeviceSpec) => void,
+  onGenerationStarted?: (device: DeviceSpec) => void
 ) {
   const [messages, setMessages] = useState<Message[]>(() => [createSystemMessage()]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
@@ -568,7 +669,10 @@ export function useChat(
       const appRequest = isAppRequest(userText);
       const appContextText = getAppContextText(userText, messages);
       const guessedDevice = inferDeviceFromText(userText);
-      if (appRequest) onDeviceDetected?.(guessedDevice);
+      if (appRequest) {
+        onDeviceDetected?.(guessedDevice);
+        onGenerationStarted?.(guessedDevice);
+      }
 
       const userMessage: Message = {
         id: createId('user'),
@@ -641,7 +745,7 @@ export function useChat(
 
           if (code && generatedApp) {
             const usesWatchCalculatorBlueprint = shouldUseCircularWatchCalculatorBlueprint(appContextText, finalDevice);
-            const previewCode = usesWatchCalculatorBlueprint ? getCircularWatchCalculatorCode() : code;
+            let previewCode = usesWatchCalculatorBlueprint ? getCircularWatchCalculatorCode() : code;
             const previewNote = usesWatchCalculatorBlueprint
               ? 'He aplicado una distribucion circular especifica para reloj: botones compactos dentro del circulo, operadores en corona y sin cuadricula rectangular.'
               : null;
@@ -658,9 +762,47 @@ export function useChat(
             onDeviceDetected?.(finalDevice);
 
             try {
+              setThinkingLabel('Verificando App.js antes de la preview');
+              let verificationNote = 'Verificado: App.js pasa el chequeo sintactico antes de la preview.';
+              const initialValidation = await validateGeneratedCode(previewCode);
+
+              if (!initialValidation.ok) {
+                const validationSummary = initialValidation.errors.slice(0, 2).join(' ');
+                patchAssistant(assistantId, {
+                  content: [
+                    makeIntro(userText, finalDevice),
+                    summary,
+                    previewNote,
+                    `He detectado un error en App.js antes de abrir la preview: ${validationSummary}`,
+                    'Estoy reparando el codigo automaticamente...',
+                  ].filter(Boolean).join('\n\n'),
+                  deviceType: finalDevice.deviceType,
+                  watchShape: finalDevice.watchShape,
+                  workflow: undefined,
+                });
+
+                setThinkingLabel('Corrigiendo App.js antes de la preview');
+                const repairedCode = await repairGeneratedCode({
+                  model,
+                  apiKey,
+                  userText: appContextText,
+                  device: finalDevice,
+                  code: previewCode,
+                  errors: initialValidation.errors,
+                });
+
+                const repairedValidation = await validateGeneratedCode(repairedCode);
+                if (!repairedValidation.ok) {
+                  throw new Error(`App.js sigue teniendo errores: ${repairedValidation.errors.slice(0, 2).join(' ')}`);
+                }
+
+                previewCode = repairedCode;
+                verificationNote = 'Corregido y verificado: App.js ya pasa el chequeo sintactico antes de la preview.';
+              }
+
               await onCodeGenerated?.(previewCode, finalDevice);
               patchAssistant(assistantId, {
-                content: [makeIntro(userText, finalDevice), summary, previewNote, 'Listo, ya tienes la preview interactiva en el panel derecho.']
+                content: [makeIntro(userText, finalDevice), summary, previewNote, verificationNote, 'Listo, ya tienes la preview interactiva en el panel derecho.']
                   .filter(Boolean)
                   .join('\n\n'),
                 workflow: undefined,
@@ -702,7 +844,7 @@ export function useChat(
         }
       );
     },
-    [apiKey, messages, model, onCodeGenerated, onDeviceDetected, patchAssistant, responseMode, send]
+    [apiKey, messages, model, onCodeGenerated, onDeviceDetected, onGenerationStarted, patchAssistant, responseMode, send]
   );
 
   const stopStreaming = useCallback(() => {
